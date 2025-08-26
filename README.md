@@ -62,7 +62,6 @@ PORT=5000
 # 🧪 Features
 - 🔄 Reconnection & Session Persistence
 - 🧠 Modular Socket Event Architecture
-- 🎨 Anime/Ghibli-style Image Filters
 - ⚡ Real-Time Table Sync & Player State
 - 💬 Custom Hooks for Feedback & Error Handling
 - 🃏 Smooth UI Animations (Card Flip, Skeleton Loaders)
