@@ -53,7 +53,7 @@ pnpm run dev
 ⚙️ Environment Variables
 Create .env files in apps/poker-game-server.
 Example:
-# poker-game-server/.env
+poker-game-server/.env
 PORT=5000
 
 🧪 Features
