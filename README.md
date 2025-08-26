@@ -12,45 +12,49 @@ apps/
 Before you begin, make sure you have:
 - Node.js (v18+ recommended)
 - pnpm – install globally:
+```bash
 npm install -g pnpm
-
+```
 
 
 🚀 Getting Started
 1. Install Dependencies
 Run this from the root of the project:
+```bash
 pnpm install
-
+```
 
 This installs all dependencies across the monorepo and links shared packages.
 
 2. Run Backend
+```bash
 cd apps/poker-game-server
+```
+```bash
 pnpm run dev
+```
 
 
 - Starts the backend server in development mode.
 - Handles player identity, table management, and reconnection logic.
 
 3. Run Frontend
+```bash
 cd apps/poker-game-frontify
+```
+```bash
 pnpm run dev
+```
 
 
 - Launches the React frontend with hot reload.
 - Includes animated card flips, image filters, and real-time state sync.
 
 ⚙️ Environment Variables
-Create .env files in both apps/poker-game-server and apps/poker-game-frontify.
+Create .env files in apps/poker-game-server.
 Example:
 # poker-game-server/.env
-PORT=3001
-MONGO_URI=mongodb://localhost:27017/poker
-
-# poker-game-frontify/.env
-VITE_BACKEND_URL=http://localhost:3001
-
-
+PORT=5000
 
 🧪 Features
 - 🔄 Reconnection & Session Persistence
@@ -59,15 +63,6 @@ VITE_BACKEND_URL=http://localhost:3001
 - ⚡ Real-Time Table Sync & Player State
 - 💬 Custom Hooks for Feedback & Error Handling
 - 🃏 Smooth UI Animations (Card Flip, Skeleton Loaders)
-
-🧹 Scripts
-|  |  | 
-| pnpm run dev |  | 
-| pnpm run build |  | 
-| pnpm run lint |  | 
-| pnpm run test |  | 
-
-
 
 🤝 Contributing
 Pull requests are welcome! For major changes, open an issue first to discuss what you’d like to improve.
