@@ -2,10 +2,11 @@
 A full-stack poker game built with Node.js, Socket.IO, and React, featuring reconnection logic, session persistence, and smooth UI animations.
 
 # 📦 Project Structure
+```bash
 apps/
 ├── poker-game-server     # Backend: Node.js + Socket.IO
 └── poker-game-frontify   # Frontend: React + Hooks + Animations
-
+```
 
 
 # 🛠 Prerequisites
