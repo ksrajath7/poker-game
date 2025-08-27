@@ -1,8 +1,9 @@
 export default function GameControls({ handleStartGame, isGameStarted, currentTurn, userId, betAmount, setBetAmount, handleCall, handleRaise, handleFold, handleNextStage, stage, bettingRoundActive, handleShowdown, currentBet }) {
     return (
         <div className="absolute bottom-6 flex flex-wrap justify-center gap-3 z-10">
-            <button onClick={handleStartGame} className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700 transition" >
-                {isGameStarted ? <span>🎲 Re-Start Game</span> : <span>🎲 Start Game</span>}
+            <button disabled={isGameStarted && stage !== "showdown"} onClick={handleStartGame} className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700 transition" >
+                {/* <span>🎲 Start Game</span> */}
+                {isGameStarted ? stage !== "showdown" ? <span>Game in progress</span> : <span>🎲 Re-Start Game</span> : <span>🎲 Start Game</span>}
             </button>
 
             {currentTurn === userId && isGameStarted && bettingRoundActive && (

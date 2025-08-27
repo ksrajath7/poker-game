@@ -4,17 +4,23 @@ import PlayingCard from "./PlayingCard";
 export default function PokerTable({ communityCards, pot, currentBet, currentTurn, userId, players, winners, hand }) {
     // Determine table size based on screen width
     const tableSize = window.innerWidth >= 1024 ? 500 : window.innerWidth >= 768 ? 400 : 300;
-    const radius = tableSize / 2 + 50; // extra spacing outside table circle
+    const radius = tableSize / 2 + 50; // spacing outside the table
+
+    // --- Ensure current user is always at bottom ---
+    const myIndex = players.findIndex(p => p.userId === userId);
+    const rotatedPlayers = myIndex >= 0
+        ? [...players.slice(myIndex), ...players.slice(0, myIndex)]
+        : players;
 
     return (
         <div className="relative w-full h-[600px] flex items-center justify-center">
             {/* Table Circle */}
             <div
-                className={`absolute rounded-full shadow-2xl flex items-center justify-center`}
+                className="absolute rounded-full shadow-2xl flex items-center justify-center"
                 style={{
                     width: tableSize,
                     height: tableSize,
-                    backgroundColor: '#065f46' // Tailwind green-800
+                    backgroundColor: "#065f46", // Tailwind green-800
                 }}
             >
                 {/* Community Cards */}
@@ -44,11 +50,12 @@ export default function PokerTable({ communityCards, pot, currentBet, currentTur
             </div>
 
             {/* Players Around Table */}
-            {players.map((p, i) => {
+            {rotatedPlayers.map((p, i) => {
                 const isWinner = winners.some(w => w.player.userId === p.userId);
                 const winnerInfo = winners.find(w => w.player.userId === p.userId);
 
-                const angle = (360 / players.length) * i - 90; // start from top
+                // distribute around circle, with me (index 0) at bottom (90°)
+                const angle = (360 / rotatedPlayers.length) * i + 90;
                 const x = radius * Math.cos((angle * Math.PI) / 180);
                 const y = radius * Math.sin((angle * Math.PI) / 180);
 

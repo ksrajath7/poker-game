@@ -28,8 +28,17 @@ export default (io) => {
 
             table.addPlayer({ socketId: socket.id, userId, username });
             socket.join(tableId);
+
+            const player = table.players.find(p => p.userId === userId);
+
             io.in(tableId).emit('playerJoined', { userId, players: table.getDetails().players });
             io.to(socket.id).emit('joinedTable', { tableId, table: table.getDetails(userId) });
+            // If they are waiting, explicitly notify them
+            console.log("PLAYER JOINED IN BETWEEN", player)
+            if (player.isWaiting) {
+                io.to(socket.id).emit('waitingForNextHand', { message: 'You have joined and will enter on the next hand.' });
+            }
+
             syncTableToAll(table);
         });
 
@@ -37,10 +46,18 @@ export default (io) => {
             const table = tableManager.getTable(tableId);
             if (!table) return io.to(socket.id).emit('error', { message: 'Table not found' });
 
+            const activePlayers = table.players.filter(p => !p.isWaiting);
+            if (activePlayers.length < 2) {
+                return io.to(socket.id).emit('error', { message: 'Not enough active players to start the game.' });
+            }
+
             table.startGame();
-            table.players.forEach(p => io.to(p.socketId).emit('yourHand', { hand: p.hand }));
+            table.players.forEach(p => {
+                if (!p.isWaiting) io.to(p.socketId).emit('yourHand', { hand: p.hand });
+            });
+
             io.in(tableId).emit('gameStarted', { stage: table.stage });
-            io.in(tableId).emit('playerTurn', { userId: table.getCurrentPlayer().userId });
+            io.in(tableId).emit('playerTurn', { userId: table.getCurrentPlayer()?.userId });
             syncTableToAll(table);
         });
 
@@ -59,7 +76,7 @@ export default (io) => {
                     stage: table.stage
                 });
                 if (table.bettingRoundActive && table.playersToAct.length > 0) {
-                    io.in(tableId).emit('playerTurn', { userId: table.getCurrentPlayer().userId });
+                    io.in(tableId).emit('playerTurn', { userId: table.getCurrentPlayer()?.userId });
                 } else if (!table.bettingRoundActive) {
                     io.in(tableId).emit('bettingRoundComplete', { stage: table.stage });
                 }
@@ -99,12 +116,14 @@ export default (io) => {
             syncTableToAll(table);
         });
 
-
         socket.on('showdown', ({ tableId }) => {
             const table = tableManager.getTable(tableId);
             if (!table) return;
+
             const result = table.showdown();
             io.in(tableId).emit('winner', result);
+            io.in(tableId).emit('readyForNextHand', { message: 'Hand complete. Start next hand when ready.' });
+
             syncTableToAll(table);
         });
 

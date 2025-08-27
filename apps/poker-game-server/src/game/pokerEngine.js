@@ -16,7 +16,11 @@ export default class Table {
         this.minimumBet = 10;
         this.bettingRoundActive = false;
         this.playersToAct = [];
+
+        this.currentHandHistory = []; // bets/actions for the ongoing hand
+        this.allHandHistories = [];   // stores completed hand histories
     }
+
 
     rankValue = r => this.rankOrder.indexOf(r);
 
@@ -30,29 +34,30 @@ export default class Table {
                 hand: [],
                 chips: 1000,
                 currentBet: 0,
-                isActive: true
+                isActive: !this.isGameStarted, // active only if game hasn't started
+                isWaiting: this.isGameStarted   // wait if game already started
             });
         } else {
-            // Update socketId if already exists
             const existing = this.players.find(p => p.userId === userId);
             existing.socketId = socketId;
         }
     }
-
     removePlayer(userId) {
         const index = this.players.findIndex(p => p.userId === userId);
         if (index === -1) return null;
 
         const [removed] = this.players.splice(index, 1);
 
-        // Redistribute chips
-        const activePlayers = this.players.filter(p => p.isActive);
-        if (activePlayers.length > 0 && removed.chips > 0) {
-            const share = Math.floor(removed.chips / activePlayers.length);
-            let remainder = removed.chips - share * activePlayers.length;
-            activePlayers.forEach(p => p.chips += share);
-            for (let i = 0; remainder > 0 && i < activePlayers.length; i++, remainder--) {
-                activePlayers[i].chips += 1;
+        // Only redistribute chips if the player was active (not waiting)
+        if (!removed.isWaiting) {
+            const activePlayers = this.players.filter(p => p.isActive);
+            if (activePlayers.length > 0 && removed.chips > 0) {
+                const share = Math.floor(removed.chips / activePlayers.length);
+                let remainder = removed.chips - share * activePlayers.length;
+                activePlayers.forEach(p => p.chips += share);
+                for (let i = 0; remainder > 0 && i < activePlayers.length; i++, remainder--) {
+                    activePlayers[i].chips += 1;
+                }
             }
         }
 
@@ -72,8 +77,10 @@ export default class Table {
                 chips: p.chips,
                 currentBet: p.currentBet,
                 isActive: p.isActive,
-                // Show actual hand if requesting user OR if stage is showdown
-                hand: (p.userId === forUserId || this.stage === 'showdown') ? p.hand : (p.hand.length ? ['Hidden', 'Hidden'] : []),
+                isWaiting: p.isWaiting,
+                hand: (p.userId === forUserId || this.stage === 'showdown')
+                    ? p.hand
+                    : (p.hand.length ? ['Hidden', 'Hidden'] : []),
             })),
             communityCards: this.communityCards,
             pot: this.pot,
@@ -81,10 +88,10 @@ export default class Table {
             totalPlayers: this.players.length,
             isGameStarted: this.isGameStarted,
             bettingRoundActive: this.bettingRoundActive,
-            stage: this.stage
+            stage: this.stage,
+            betHistory: []
         };
     }
-
 
     // ---------------- Game Flow ----------------
     startGame() {
@@ -101,6 +108,7 @@ export default class Table {
             p.hand = this.deck.deal(2);
             p.currentBet = 0;
             p.isActive = true;
+            p.isWaiting = false;
         });
 
         this.startBettingRound();
@@ -208,7 +216,7 @@ export default class Table {
     // ---------------- Showdown ----------------
     showdown() {
         const activePlayers = this.players.filter(p => p.isActive);
-        let potAmount = this.pot; // store pot before resetting
+        let potAmount = this.pot;
         let winners = [];
 
         // If only one active player, they win the whole pot
@@ -224,10 +232,16 @@ export default class Table {
                 pot: potAmount
             };
 
+            // Reset table state but keep waiting players flagged
             this.pot = 0;
-            this.players.forEach(p => p.currentBet = 0);
+            this.players.forEach(p => {
+                p.currentBet = 0;
+                // p.hand = [];
+                if (!p.isWaiting) p.isActive = true; // ready for next game
+            });
             this.stage = 'showdown';
             this.bettingRoundActive = false;
+            this.isGameStarted = false;
 
             return result;
         }
@@ -239,11 +253,18 @@ export default class Table {
             const allCards = [...player.hand, ...this.communityCards];
             const handResult = this.evaluateHand(allCards);
 
-            if (!best || handResult.rank > best.rank ||
-                (handResult.rank === best.rank && this.compareTiebreakers(handResult.tiebreaker, best.tiebreaker) > 0)) {
+            if (
+                !best ||
+                handResult.rank > best.rank ||
+                (handResult.rank === best.rank &&
+                    this.compareTiebreakers(handResult.tiebreaker, best.tiebreaker) > 0)
+            ) {
                 best = handResult;
                 winners = [{ player, handResult }];
-            } else if (handResult.rank === best.rank && this.compareTiebreakers(handResult.tiebreaker, best.tiebreaker) === 0) {
+            } else if (
+                handResult.rank === best.rank &&
+                this.compareTiebreakers(handResult.tiebreaker, best.tiebreaker) === 0
+            ) {
                 winners.push({ player, handResult });
             }
         });
@@ -252,14 +273,19 @@ export default class Table {
         let share = winners.length > 0 ? Math.floor(potAmount / winners.length) : 0;
         winners.forEach(w => {
             w.player.chips += share;
-            w.amountWon = share; // attach amount won to result
+            w.amountWon = share;
         });
 
-        // Reset table state
+        // Reset table state but keep waiting players flagged
         this.pot = 0;
-        this.players.forEach(p => p.currentBet = 0);
+        this.players.forEach(p => {
+            p.currentBet = 0;
+            // p.hand = [];
+            if (!p.isWaiting) p.isActive = true; // they are ready for the next game
+        });
         this.stage = 'showdown';
         this.bettingRoundActive = false;
+        this.isGameStarted = false;
 
         return { winners, communityCards: this.communityCards, pot: potAmount };
     }

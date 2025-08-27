@@ -80,7 +80,8 @@ function HomePage() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-purple-700 via-indigo-600 to-pink-500 flex items-center justify-center">
             <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-2xl p-8 w-full max-w-md space-y-6">
-                <h1 className="text-3xl font-bold text-center text-gray-800">🎴 Poker Table</h1>
+                <h1 className="text-3xl font-bold text-center text-gray-800">🎴 Big Blind Raju</h1>
+                <p className="text-lg text-gray-700 mt-1 text-center">Your Most Trustable Poker Companion</p>
 
                 {error && (
                     <div className="text-red-600 font-medium text-center">{error}</div>
@@ -126,7 +127,14 @@ function HomePage() {
                 </div>
 
                 <div className="text-center text-gray-500 text-sm mt-2">
-                    Enter your username and either create a new table or join an existing one.
+                    {
+                        !joinedTableId ? <>
+                            Enter your username and either create a new table or join an existing one.</>
+                            :
+                            <>
+                                Enter your username and join a table.</>
+                    }
+
                 </div>
             </div>
         </div>

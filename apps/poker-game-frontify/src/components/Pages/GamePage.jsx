@@ -8,6 +8,7 @@ import WinnerPopup from "../Popups/WinnerPopup";
 import TableCodeAndLink from "../App/TableCodeAndLink";
 import PokerTable from "../App/PokerTable";
 import GameControls from "../App/GameControls";
+import BetHistoryNotifications from "../App/BetHistoryNotifications";
 
 function GamePage() {
     const { joinedTableId } = useParams();
@@ -16,6 +17,7 @@ function GamePage() {
     const [showWinnerPopup, setShowWinnerPopup] = useState(false);
 
     const [players, setPlayers] = useState([]);
+    const [betHistory, setBetHistory] = useState([]);
     const [communityCards, setCommunityCards] = useState([]);
     const [pot, setPot] = useState(0);
     const [isGameStarted, setIsGameStarted] = useState(false);
@@ -53,9 +55,10 @@ function GamePage() {
 
             const me = table.players.find(p => p.userId === userId);
             setHand(me?.hand || []);
+            setError("")
         });
 
-        socket.on("tableDetails", ({ players, communityCards, pot, currentBet, isGameStarted, stage, bettingRoundActive }) => {
+        socket.on("tableDetails", ({ players, communityCards, pot, currentBet, isGameStarted, stage, bettingRoundActive, betHistory }) => {
             setPlayers(players);
             setCommunityCards(communityCards);
             setPot(pot);
@@ -66,22 +69,40 @@ function GamePage() {
 
             const me = players.find(p => p.userId === userId);
             setHand(me?.hand || []);
+
+            setBetHistory(
+                betHistory.map(item => {
+                    return {
+                        ...item,
+                        formattedTime: new Date(item.timestamp).toLocaleString()
+                    };
+                })
+            );
+            // Disable controls if waiting
+            if (me?.isWaiting) {
+                setError("You are waiting for the next hand to start.");
+            } else {
+                setError("");
+            }
         });
 
-        socket.on("yourHand", ({ hand }) => setHand(hand));
-        socket.on("playerJoined", ({ players }) => { setPlayers(players) });
-        socket.on("playerLeft", ({ players }) => setPlayers(players));
+
+        socket.on("yourHand", ({ hand }) => { setHand(hand); setError("") });
+        socket.on("playerJoined", ({ players }) => { setPlayers(players); setError("") });
+        socket.on("playerLeft", ({ players }) => { setPlayers(players); setError("") });
         socket.on("betPlaced", ({ pot, currentBet, bettingRoundActive }) => {
             setPot(pot);
             setCurrentBet(currentBet);
             setBettingRoundActive(bettingRoundActive);
+            setError("")
         });
         socket.on("communityCards", ({ cards, stage }) => {
             setCommunityCards(cards);
             setStage(stage);
+            setError("")
         });
-        socket.on("playerTurn", ({ userId }) => setCurrentTurn(userId));
-        socket.on("bettingRoundComplete", () => setBettingRoundActive(false));
+        socket.on("playerTurn", ({ userId }) => { setCurrentTurn(userId); setError("") });
+        socket.on("bettingRoundComplete", () => { setBettingRoundActive(false); setError("") });
         socket.on("winner", winnerArray => {
             if (winnerArray.winners) {
                 console.log(winnerArray)
@@ -93,13 +114,24 @@ function GamePage() {
                 setShowWinnerPopup(false)
             };
             setStage("showdown");
+            setError("")
         });
 
         socket.on("removedFromTable", () => navigate("/"));
-        socket.on("error", ({ message }) => setError(message));
+        socket.on("error", ({ message }) => { setError(message); setError("") });
 
         socket.io.on("reconnect", () => {
             socket.emit("joinTable", { tableId: joinedTableId, userId, username });
+        });
+
+        socket.on("waitingForNextHand", ({ message }) => {
+            setError(message); // Or show a toast/modal if you have one
+            setHand([]); // Ensure no hand is shown yet
+        });
+
+        socket.on("readyForNextHand", ({ message }) => {
+            console.log(message);
+            setError("");
         });
 
         return () => {
@@ -116,6 +148,7 @@ function GamePage() {
             socket.off("removedFromTable");
             socket.off("error");
             socket.io.off("reconnect");
+            socket.off("waitingForNextHand");
         };
     }, [joinedTableId, userId, username, navigate]);
 
@@ -146,7 +179,7 @@ function GamePage() {
     // UI
     // -------------------------------
     return (
-        <div className="min-h-[100svh] overflow-auto bg-gradient-to-br from-gray-900 to-black text-white relative flex items-center justify-center">
+        <div className=" min-h-[100svh] overflow-x-hidden overflow-y-auto bg-gradient-to-br from-gray-900 to-black text-white relative flex items-center justify-center">
 
             {/* Winner Popup */}
             <WinnerPopup showWinnerPopup={showWinnerPopup} winners={winners} setShowWinnerPopup={setShowWinnerPopup} />
@@ -164,6 +197,8 @@ function GamePage() {
             <GameControls betAmount={betAmount} bettingRoundActive={bettingRoundActive} currentBet={currentBet} currentTurn={currentTurn}
                 handleCall={handleCall} handleFold={handleFold} handleNextStage={handleNextStage} handleRaise={handleRaise} handleShowdown={handleShowdown}
                 handleStartGame={handleStartGame} isGameStarted={isGameStarted} setBetAmount={setBetAmount} stage={stage} userId={userId} />
+
+            <BetHistoryNotifications betHistory={betHistory} />
 
         </div>
     );
