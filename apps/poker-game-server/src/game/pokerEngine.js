@@ -72,7 +72,8 @@ export default class Table {
                 chips: p.chips,
                 currentBet: p.currentBet,
                 isActive: p.isActive,
-                hand: p.userId === forUserId ? p.hand : (p.hand.length ? ['Hidden', 'Hidden'] : []),
+                // Show actual hand if requesting user OR if stage is showdown
+                hand: (p.userId === forUserId || this.stage === 'showdown') ? p.hand : (p.hand.length ? ['Hidden', 'Hidden'] : []),
             })),
             communityCards: this.communityCards,
             pot: this.pot,
@@ -83,6 +84,7 @@ export default class Table {
             stage: this.stage
         };
     }
+
 
     // ---------------- Game Flow ----------------
     startGame() {

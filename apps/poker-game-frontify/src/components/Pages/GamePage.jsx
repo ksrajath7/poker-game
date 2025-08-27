@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import { _retrieveData } from "@/lib/local-storage";
 import PlayingCard from "../App/PlayingCard";
+import Player from "../App/Player";
 
 function GamePage() {
     const { joinedTableId } = useParams();
@@ -65,7 +66,7 @@ function GamePage() {
         });
 
         socket.on("yourHand", ({ hand }) => setHand(hand));
-        socket.on("playerJoined", ({ players }) => setPlayers(players));
+        socket.on("playerJoined", ({ players }) => { setPlayers(players) });
         socket.on("playerLeft", ({ players }) => setPlayers(players));
         socket.on("betPlaced", ({ pot, currentBet, bettingRoundActive }) => {
             setPot(pot);
@@ -194,7 +195,7 @@ function GamePage() {
                 <div className="absolute w-[500px] h-[500px] bg-green-800 rounded-full shadow-2xl flex items-center justify-center">
                     {/* Community Cards */}
                     <div className="flex flex-col items-center gap-4 z-10">
-                        <div className="flex justify-center gap-2 flex-wrap mb-4">
+                        <div className="flex justify-center gap-2 flex-wrap mb-4 ">
                             {communityCards.map((c, i) => <PlayingCard key={i} rank={c.rank} suit={c.suit} />)}
                         </div>
                         <div className="flex flex-col gap-1 mt-2 text-xs text-gray-200">
@@ -207,12 +208,7 @@ function GamePage() {
                                 </p>
                             )}
                         </div>
-                        <div className="text-center mb-4">
-                            <h4 className="text-sm font-semibold mb-2">Your Hand</h4>
-                            <div className="flex justify-center gap-2 flex-wrap">
-                                {hand.length ? hand.map((c, i) => <PlayingCard key={i} rank={c.rank} suit={c.suit} />) : <p>Waiting for deal...</p>}
-                            </div>
-                        </div>
+
                     </div>
                 </div>
 
@@ -227,22 +223,7 @@ function GamePage() {
                     const y = radius * Math.sin((angle * Math.PI) / 180);
 
                     return (
-                        <div key={i} className="absolute" style={{ transform: `translate(${x}px, ${y}px)` }}>
-                            <div className={`
-                    p-3 rounded-xl bg-gray-900 bg-opacity-90 text-center shadow-lg transition-all duration-300
-                    ${currentTurn === p.userId ? "ring-4 ring-yellow-400 box a" : ""}
-                    ${isWinner ? "border-4 border-green-400" : ""}
-                    hover:scale-110
-                `} style={{ minWidth: "100px" }}>
-                                <p className="font-semibold text-white">{p.username}</p>
-                                <p className="text-sm text-green-300">Chips: ${p.chips}</p>
-                                {isWinner && winnerInfo && (
-                                    <p className="text-xs text-green-200 mt-1">
-                                        Winner: {winnerInfo.handResult.name} ({winnerInfo.handResult.rank})
-                                    </p>
-                                )}
-                            </div>
-                        </div>
+                        <Player myUserId={userId} myHand={hand} key={i} x={x} y={y} currentTurn={currentTurn} player={p} isWinner={isWinner} winnerInfo={winnerInfo} />
                     );
                 })}
             </div>
