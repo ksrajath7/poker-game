@@ -1,9 +1,10 @@
 import socket from "@/lib/socket";
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { _retrieveData, _storeData } from "@/lib/local-storage";
 
 function HomePage() {
+    const { joinedTableId } = useParams();
     const navigate = useNavigate()
     const [players, setPlayers] = useState([]);
     const [username, setUsername] = useState('');
@@ -30,7 +31,6 @@ function HomePage() {
         });
 
         socket.on('error', ({ message }) => {
-            console.error('Join error:', message);
             setError(message);
             setIsJoining(false);
             setIsCreatingTable(false);
@@ -41,7 +41,7 @@ function HomePage() {
             socket.off('joinedTable');
             socket.off('error');
         };
-    }, []);
+    }, [navigate]);
 
     const handleJoinTable = () => {
         setError('');
@@ -52,7 +52,6 @@ function HomePage() {
             setIsJoining(true);
             socket.emit('joinTable', { tableId: tableId.trim(), userId, username });
         } else {
-            setIsJoining(false);
             setError('Please enter a valid table ID.');
         }
     };
@@ -66,57 +65,68 @@ function HomePage() {
             setIsJoining(true);
             socket.emit('createTable', { userId, username });
         } else {
-            setIsCreatingTable(false);
-            setIsJoining(false);
             setError('Something went wrong!');
         }
     };
 
-    return (
-        <div className="min-h-[100svh] bg-gray-50">
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
-                <div className="mb-4">
+    useEffect(() => {
+        if (joinedTableId) {
+            setTableId(joinedTableId)
+        }
+    }, [])
 
-                    <button
-                        onClick={handleCreateTable}
-                        disabled={isCreatingTable}
-                        className={`px-4 py-1 rounded text-white ${isCreatingTable ? 'bg-gray-400' : 'bg-blue-500'
-                            }`}
-                    >
-                        {isCreatingTable ? 'Creating...' : 'Create Table'}
-                    </button>
-                </div>
-                <div className="mb-4">
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-purple-700 via-indigo-600 to-pink-500 flex items-center justify-center">
+            <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-2xl p-8 w-full max-w-md space-y-6">
+                <h1 className="text-3xl font-bold text-center text-gray-800">🎴 Poker Table</h1>
+
+                {error && (
+                    <div className="text-red-600 font-medium text-center">{error}</div>
+                )}
+
+                <div className="space-y-4">
                     <input
                         type="text"
                         placeholder="Enter username"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
-                        className="border px-2 py-1 rounded mr-2"
+                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent shadow-sm"
                     />
+
                     <input
                         type="text"
                         placeholder="Enter Table ID"
                         value={tableId}
                         onChange={(e) => setTableId(e.target.value)}
-                        className="border px-2 py-1 rounded mr-2"
+                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent shadow-sm"
                     />
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-4">
+                    {!joinedTableId && <button
+                        onClick={handleCreateTable}
+                        disabled={isCreatingTable}
+                        className={`flex-1 px-4 py-2 rounded-lg text-white font-semibold transition-transform transform hover:scale-105 ${isCreatingTable ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600'
+                            }`}
+                    >
+                        {isCreatingTable ? 'Creating...' : 'Create Table'}
+                    </button>}
+
+
                     <button
                         onClick={handleJoinTable}
                         disabled={isJoining}
-                        className={`px-4 py-1 rounded text-white ${isJoining ? 'bg-gray-400' : 'bg-blue-500'
+                        className={`flex-1 px-4 py-2 rounded-lg text-white font-semibold transition-transform transform hover:scale-105 ${isJoining ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'
                             }`}
                     >
                         {isJoining ? 'Joining...' : 'Join Table'}
                     </button>
                 </div>
 
-                {error && (
-                    <div className="text-red-600 font-medium mb-4">{error}</div>
-                )}
-
-
-            </main>
+                <div className="text-center text-gray-500 text-sm mt-2">
+                    Enter your username and either create a new table or join an existing one.
+                </div>
+            </div>
         </div>
     );
 }

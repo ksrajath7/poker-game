@@ -75,7 +75,7 @@ export default (io) => {
         // -------------------------------
 
         socket.on('createTable', ({ userId, username }) => {
-            const tableId = 'table-' + Math.floor(100000 + Math.random() * 900000);
+            const tableId = Math.floor(100000 + Math.random() * 900000);
             if (tableManager.getTable(tableId)) {
                 io.to(socket.id).emit('tableExists', { tableId });
                 return;

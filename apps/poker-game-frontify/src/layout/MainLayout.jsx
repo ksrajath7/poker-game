@@ -29,8 +29,8 @@ const MainLayout = () => {
 
   return (
     <>
-      <Header />
-      {!atTop && <Header isSticky visible={showSticky} />}
+      {/* <Header /> */}
+      {/* {!atTop && <Header isSticky visible={showSticky} />} */}
       <Outlet />
     </>
   );

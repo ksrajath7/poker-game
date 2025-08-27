@@ -16,6 +16,7 @@ export const router = createBrowserRouter(
 
       <Route path="/" element={<MainLayout />}>
         <Route index element={<HomePage />} />
+        <Route path="/join/:joinedTableId" index element={<HomePage />} />
         <Route path="/table/:joinedTableId" element={<GamePage />} />
       </Route>
 

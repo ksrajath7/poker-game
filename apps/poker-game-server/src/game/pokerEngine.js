@@ -34,19 +34,32 @@ export default class Table {
     }
     removePlayer(userId) {
         const index = this.players.findIndex(p => p.userId === userId);
-        if (index !== -1) {
-            const [removed] = this.players.splice(index, 1);
+        if (index === -1) return null;
 
-            // Redistribute chips among active players
-            const activePlayers = this.players.filter(p => p.isActive);
-            if (activePlayers.length > 0 && removed.chips > 0) {
-                const share = Math.floor(removed.chips / activePlayers.length);
-                activePlayers.forEach(p => p.chips += share);
+        const [removed] = this.players.splice(index, 1);
+
+        const activePlayers = this.players.filter(p => p.isActive);
+        if (activePlayers.length > 0 && removed.chips > 0) {
+            const share = Math.floor(removed.chips / activePlayers.length);
+            let remainder = removed.chips - share * activePlayers.length;
+
+            activePlayers.forEach(p => p.chips += share);
+
+            for (let i = 0; remainder > 0 && i < activePlayers.length; i++, remainder--) {
+                activePlayers[i].chips += 1;
             }
-
-            return removed;
         }
-        return null;
+
+        if (this.currentTurn === removed.userId) {
+            if (activePlayers.length > 0) {
+                const currentIndex = index % activePlayers.length;
+                this.currentTurn = activePlayers[currentIndex].userId;
+            } else {
+                this.currentTurn = null;
+            }
+        }
+
+        return removed;
     }
 
     getDetails(forUserId) {
