@@ -13,6 +13,8 @@ function HomePage() {
     const [isJoining, setIsJoining] = useState(false);
     const [isCreatingTable, setIsCreatingTable] = useState(false);
 
+    const gitHubUrl = "https://github.com/ksrajath7/poker-game"
+
     function generateNewId() {
         return 'user-' + Math.random().toString(36).substr(2, 9);
     }
@@ -79,6 +81,19 @@ function HomePage() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-purple-700 via-indigo-600 to-pink-500 flex items-center justify-center">
+
+            <a
+                href={gitHubUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="absolute top-4 left-4 text-white text-2xl hover:text-gray-200 transition-colors"
+            >
+                <img
+                    src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
+                    alt="GitHub Repo"
+                    className="w-8 h-8 hover:opacity-80 transition-opacity"
+                />
+            </a>
             <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-2xl p-8 w-full max-w-md space-y-6">
                 <h1 className="text-3xl font-bold text-center text-gray-800">🎴 Big Blind Raju</h1>
                 <p className="text-lg text-gray-700 mt-1 text-center">Your Most Trustable Poker Companion</p>
