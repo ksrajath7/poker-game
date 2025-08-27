@@ -161,14 +161,17 @@ export default class Table {
             case "fold":
                 player.isActive = false;
                 break;
+
             case "call": {
                 const toCall = this.lastBetAmount - player.currentBet;
+                if (player.chips < toCall) return false;
                 const callAmount = Math.min(toCall, player.chips);
                 player.chips -= callAmount;
                 player.currentBet += callAmount;
                 this.pot += callAmount;
                 break;
             }
+
             case "raise": {
                 if (amount < this.minimumBet) return false;
                 const raiseTotal = (this.lastBetAmount - player.currentBet) + amount;
@@ -178,12 +181,19 @@ export default class Table {
                 this.pot += raiseTotal;
                 this.lastBetAmount = player.currentBet;
 
-                this.playersToAct = this.players.filter(p => p.isActive && p.userId !== player.userId && p.currentBet < this.lastBetAmount);
+                this.playersToAct = this.players.filter(
+                    p => p.isActive && p.userId !== player.userId && p.currentBet < this.lastBetAmount
+                );
                 break;
             }
         }
 
         this.playersToAct = this.playersToAct.filter(p => p.userId !== player.userId);
+        // ---------------- Auto-fold detection ----------------
+        const activePlayers = this.players.filter(p => p.isActive);
+        if (activePlayers.length === 1) {
+            return this.showdown();
+        }
 
         if (this.playersToAct.length > 0) {
             this.currentTurnIndex = this.players.findIndex(p => p.userId === this.playersToAct[0].userId);
@@ -197,14 +207,40 @@ export default class Table {
 
     // ---------------- Showdown ----------------
     showdown() {
+        const activePlayers = this.players.filter(p => p.isActive);
+        let potAmount = this.pot; // store pot before resetting
         let winners = [];
+
+        // If only one active player, they win the whole pot
+        if (activePlayers.length === 1) {
+            const allCards = [...activePlayers[0].hand, ...this.communityCards];
+            const handResult = this.evaluateHand(allCards);
+
+            activePlayers[0].chips += potAmount;
+
+            const result = {
+                winners: [{ player: activePlayers[0], handResult, amountWon: potAmount }],
+                communityCards: this.communityCards,
+                pot: potAmount
+            };
+
+            this.pot = 0;
+            this.players.forEach(p => p.currentBet = 0);
+            this.stage = 'showdown';
+            this.bettingRoundActive = false;
+
+            return result;
+        }
+
+        // Multiple players: evaluate best hands
         let best = null;
 
-        this.players.forEach(player => {
+        activePlayers.forEach(player => {
             const allCards = [...player.hand, ...this.communityCards];
             const handResult = this.evaluateHand(allCards);
 
-            if (!best || handResult.rank > best.rank || (handResult.rank === best.rank && this.compareTiebreakers(handResult.tiebreaker, best.tiebreaker) > 0)) {
+            if (!best || handResult.rank > best.rank ||
+                (handResult.rank === best.rank && this.compareTiebreakers(handResult.tiebreaker, best.tiebreaker) > 0)) {
                 best = handResult;
                 winners = [{ player, handResult }];
             } else if (handResult.rank === best.rank && this.compareTiebreakers(handResult.tiebreaker, best.tiebreaker) === 0) {
@@ -212,33 +248,53 @@ export default class Table {
             }
         });
 
-        if (winners.length > 0) {
-            const share = Math.floor(this.pot / winners.length);
-            winners.forEach(w => w.player.chips += share);
-        }
+        // Split pot equally among winners and track amount
+        let share = winners.length > 0 ? Math.floor(potAmount / winners.length) : 0;
+        winners.forEach(w => {
+            w.player.chips += share;
+            w.amountWon = share; // attach amount won to result
+        });
 
+        // Reset table state
         this.pot = 0;
         this.players.forEach(p => p.currentBet = 0);
         this.stage = 'showdown';
         this.bettingRoundActive = false;
 
-        return { winners, communityCards: this.communityCards, pot: this.pot };
+        return { winners, communityCards: this.communityCards, pot: potAmount };
     }
 
     // ---------------- Hand Evaluation Helpers ----------------
     evaluateHand(cards) {
+        const combinations = this.get5CardCombinations(cards);
+        let best = { rank: 0, name: "High Card", tiebreaker: [] };
+
+        combinations.forEach(combo => {
+            const hand = this.evaluate5CardHand(combo);
+            if (
+                hand.rank > best.rank ||
+                (hand.rank === best.rank && this.compareTiebreakers(hand.tiebreaker, best.tiebreaker) > 0)
+            ) {
+                best = hand;
+            }
+        });
+
+        return best;
+    }
+
+    evaluate5CardHand(cards) {
         const values = cards.map(c => this.rankValue(c.rank)).sort((a, b) => b - a);
         const suits = cards.map(c => c.suit);
+
         const counts = this.countRanks(values);
         const sortedByFreq = this.sortByFrequency(counts);
+
+        const isFlush = new Set(suits).size === 1;
         const straightHigh = this.getStraightHigh(values);
-        const flushSuit = this.getFlushSuit(suits);
-        const flushCards = flushSuit ? cards.filter(c => c.suit === flushSuit).map(c => this.rankValue(c.rank)).sort((a, b) => b - a) : [];
 
         // Straight Flush
-        if (flushSuit) {
-            const sf = this.getStraightFlush(cards, flushSuit);
-            if (sf) return sf;
+        if (isFlush && straightHigh !== null) {
+            return { rank: 9, name: "Straight Flush", tiebreaker: [straightHigh] };
         }
 
         // Four of a Kind
@@ -257,12 +313,45 @@ export default class Table {
             return { rank: 7, name: "Full House", tiebreaker: [three, pair] };
         }
 
-        if (flushSuit) return { rank: 6, name: "Flush", tiebreaker: flushCards.slice(0, 5) };
+        // Flush
+        if (isFlush) return { rank: 6, name: "Flush", tiebreaker: values };
+
+        // Straight
         if (straightHigh !== null) return { rank: 5, name: "Straight", tiebreaker: [straightHigh] };
-        if (threeVals.length) return { rank: 4, name: "Three of a Kind", tiebreaker: [threeVals[0], ...sortedByFreq.filter(v => v !== threeVals[0]).slice(0, 2)] };
-        if (pairVals.length >= 2) return { rank: 3, name: "Two Pair", tiebreaker: [pairVals[0], pairVals[1], ...sortedByFreq.filter(v => ![pairVals[0], pairVals[1]].includes(v)).slice(0, 1)] };
-        if (pairVals.length === 1) return { rank: 2, name: "One Pair", tiebreaker: [pairVals[0], ...sortedByFreq.filter(v => v !== pairVals[0]).slice(0, 3)] };
-        return { rank: 1, name: "High Card", tiebreaker: values.slice(0, 5) };
+
+        // Three of a Kind
+        if (threeVals.length) {
+            return { rank: 4, name: "Three of a Kind", tiebreaker: [threeVals[0], ...sortedByFreq.filter(v => v !== threeVals[0]).slice(0, 2)] };
+        }
+
+        // Two Pair
+        if (pairVals.length >= 2) {
+            return { rank: 3, name: "Two Pair", tiebreaker: [pairVals[0], pairVals[1], ...sortedByFreq.filter(v => ![pairVals[0], pairVals[1]].includes(v)).slice(0, 1)] };
+        }
+
+        // One Pair
+        if (pairVals.length === 1) {
+            return { rank: 2, name: "One Pair", tiebreaker: [pairVals[0], ...sortedByFreq.filter(v => v !== pairVals[0]).slice(0, 3)] };
+        }
+
+        return { rank: 1, name: "High Card", tiebreaker: values };
+    }
+
+    get5CardCombinations(cards) {
+        const results = [];
+        const choose = (arr, m, start = 0, chosen = []) => {
+            if (chosen.length === m) {
+                results.push([...chosen]);
+                return;
+            }
+            for (let i = start; i < arr.length; i++) {
+                chosen.push(arr[i]);
+                choose(arr, m, i + 1, chosen);
+                chosen.pop();
+            }
+        };
+        choose(cards, 5);
+        return results;
     }
 
     compareTiebreakers(a, b) {

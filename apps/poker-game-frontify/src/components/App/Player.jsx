@@ -1,11 +1,11 @@
 import PlayingCard from "./PlayingCard";
 
 export default function Player({ myUserId, x, y, currentTurn, player, winnerInfo, isWinner, myHand }) {
-
+    console.log(winnerInfo, isWinner)
 
     return (
         <div
-            className="absolute group"
+            className="absolute group bg-red-200"
             style={{ transform: `translate(${x}px, ${y}px)` }}
         >
             {/* Cards behind the player info */}
@@ -39,7 +39,7 @@ export default function Player({ myUserId, x, y, currentTurn, player, winnerInfo
                 <p className="text-xs text-green-300">Chips: ${player.chips}</p>
                 {isWinner && winnerInfo && (
                     <p className="text-xs text-green-200 mt-1">
-                        Winner: {winnerInfo.handResult.name} ({winnerInfo.handResult.rank})
+                        Winner: {winnerInfo.handResult.name}
                     </p>
                 )}
             </div>

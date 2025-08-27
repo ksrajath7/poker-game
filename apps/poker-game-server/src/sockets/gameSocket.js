@@ -47,25 +47,26 @@ export default (io) => {
         socket.on('bet', ({ tableId, userId, amount, action }) => {
             const table = tableManager.getTable(tableId);
             if (!table) return;
-
             const success = table.placeBet(userId, amount, action);
-
-            io.in(tableId).emit('betPlaced', {
-                userId,
-                action,
-                amount,
-                success,
-                pot: table.pot,
-                currentBet: table.lastBetAmount,
-                stage: table.stage
-            });
-
-            if (table.bettingRoundActive && table.playersToAct.length > 0) {
-                io.in(tableId).emit('playerTurn', { userId: table.getCurrentPlayer().userId });
-            } else if (!table.bettingRoundActive) {
-                io.in(tableId).emit('bettingRoundComplete', { stage: table.stage });
+            if (success === true || success === false) {
+                io.in(tableId).emit('betPlaced', {
+                    userId,
+                    action,
+                    amount,
+                    success,
+                    pot: table.pot,
+                    currentBet: table.lastBetAmount,
+                    stage: table.stage
+                });
+                if (table.bettingRoundActive && table.playersToAct.length > 0) {
+                    io.in(tableId).emit('playerTurn', { userId: table.getCurrentPlayer().userId });
+                } else if (!table.bettingRoundActive) {
+                    io.in(tableId).emit('bettingRoundComplete', { stage: table.stage });
+                }
             }
-
+            else {
+                io.in(tableId).emit('winner', success);
+            }
             syncTableToAll(table);
         });
 
