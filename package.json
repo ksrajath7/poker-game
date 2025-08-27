@@ -1,0 +1,9 @@
+{
+	"name": "poker-game",
+	"private": true,
+	"description": "",
+	"scripts": {},
+	"dependencies": {
+		"pnpm": "^10.15.0"
+	}
+}
