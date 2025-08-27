@@ -7,20 +7,24 @@ export default class Table {
         this.deck = new DeckService();
         this.pot = 0;
         this.currentBet = 0;
+        this.lastBetAmount = 0;
         this.rankOrder = "23456789TJQKA";
 
-        // Turn-related
-        this.currentTurnIndex = 0; // index in this.players of who's turn it is
+        this.currentTurnIndex = 0;
         this.isGameStarted = false;
+        this.stage = 'preflop';
 
+        this.minimumBet = 10;
+        this.bettingRoundActive = false;
+        this.playersToAct = [];
     }
 
+    // Helper to get rank value
     rankValue = r => this.rankOrder.indexOf(r);
 
-
-    addPlayer({ socketId, userId, username = 'Anonymous' }) {
-        const alreadyJoined = this.players.some(p => p.userId === userId);
-        if (!alreadyJoined) {
+    // ---------------- Player Management ----------------
+    addPlayer({ socketId, userId, username }) {
+        if (!this.players.some(p => p.userId === userId)) {
             this.players.push({
                 socketId,
                 userId,
@@ -30,38 +34,34 @@ export default class Table {
                 currentBet: 0,
                 isActive: true
             });
+
+            // Set table owner if first player
+            if (!this.ownerId) this.ownerId = userId;
         }
     }
+
+
     removePlayer(userId) {
         const index = this.players.findIndex(p => p.userId === userId);
         if (index === -1) return null;
 
         const [removed] = this.players.splice(index, 1);
 
+        // Redistribute chips if needed
         const activePlayers = this.players.filter(p => p.isActive);
         if (activePlayers.length > 0 && removed.chips > 0) {
             const share = Math.floor(removed.chips / activePlayers.length);
             let remainder = removed.chips - share * activePlayers.length;
-
             activePlayers.forEach(p => p.chips += share);
-
             for (let i = 0; remainder > 0 && i < activePlayers.length; i++, remainder--) {
                 activePlayers[i].chips += 1;
-            }
-        }
-
-        if (this.currentTurn === removed.userId) {
-            if (activePlayers.length > 0) {
-                const currentIndex = index % activePlayers.length;
-                this.currentTurn = activePlayers[currentIndex].userId;
-            } else {
-                this.currentTurn = null;
             }
         }
 
         return removed;
     }
 
+    // ---------------- Table Details ----------------
     getDetails(forUserId) {
         return {
             players: this.players.map(p => ({
@@ -74,67 +74,183 @@ export default class Table {
             })),
             communityCards: this.communityCards,
             pot: this.pot,
-            currentBet: this.currentBet,
-            totalPlayers: this.players.length
+            currentBet: this.lastBetAmount,
+            totalPlayers: this.players.length,
+            isGameStarted: this.isGameStarted,
+            bettingRoundActive: this.bettingRoundActive,
+            stage: this.stage
         };
     }
 
-    startGame() {
+    // ---------------- Game Management ----------------
+    startGame(userId) {
+        if (this.ownerId !== userId) return false; // only owner can start
+
+        // Reset deck & community
         this.deck.resetDeck();
-        this.players.forEach(p => p.hand = this.deck.deal(2));
         this.communityCards = [];
         this.pot = 0;
         this.currentBet = 0;
-        this.players.forEach(p => p.isActive = true);
+        this.lastBetAmount = this.minimumBet;
         this.currentTurnIndex = 0;
+        this.stage = 'preflop';
         this.isGameStarted = true;
+        this.bettingRoundActive = false;
+
+        // Reset players
+        this.players.forEach(p => {
+            p.hand = this.deck.deal(2);
+            p.currentBet = 0;
+            p.isActive = true;
+        });
+
+        // Start first betting round
+        this.startBettingRound();
+        return true;
     }
 
-    nextTurn() {
-        if (!this.isGameStarted) return null;
-        const activePlayers = this.players.filter(p => p.isActive && p.chips > 0);
-        if (activePlayers.length <= 1) return null;
-        let attempts = 0;
-        do {
-            this.currentTurnIndex = (this.currentTurnIndex + 1) % this.players.length;
-            attempts++;
-            if (attempts > this.players.length) return null;
-        } while (!this.players[this.currentTurnIndex].isActive || this.players[this.currentTurnIndex].chips <= 0);
-        return this.players[this.currentTurnIndex];
+    startBettingRound() {
+        this.bettingRoundActive = true;
+
+        // Reset currentBet for all players
+        this.players.forEach(p => p.currentBet = 0);
+
+        // Players eligible to act
+        this.playersToAct = this.players.filter(p => p.isActive && p.chips > 0);
+
+        // Set first active player's turn
+        if (this.playersToAct.length > 0) {
+            this.currentTurnIndex = this.players.findIndex(p => p.userId === this.playersToAct[0].userId);
+        }
     }
 
     getCurrentPlayer() {
         return this.players[this.currentTurnIndex];
     }
 
+    nextTurn() {
+        if (!this.bettingRoundActive || this.playersToAct.length === 0) return null;
+
+        const nextPlayer = this.playersToAct.shift();
+        this.currentTurnIndex = this.players.findIndex(p => p.userId === nextPlayer.userId);
+        return nextPlayer;
+    }
+
+    // ---------------- Dealing ----------------
     dealFlop() {
+        if (this.stage !== 'preflop') return false;
+        if (this.bettingRoundActive && this.playersToAct.length > 0) return false;
+
         this.communityCards.push(...this.deck.deal(3));
-    }
-
-    dealTurn() {
-        this.communityCards.push(...this.deck.deal(1));
-    }
-
-    dealRiver() {
-        this.communityCards.push(...this.deck.deal(1));
-    }
-
-    placeBet(playerId, amount) {
-        const currentPlayer = this.getCurrentPlayer();
-        if (!currentPlayer || currentPlayer.userId !== playerId) return false;
-        const player = currentPlayer;
-        if (player.chips < amount) return false;
-        player.chips -= amount;
-        player.currentBet += amount;
-        this.pot += amount;
-        this.currentBet = Math.max(this.currentBet, amount);
-        this.nextTurn();
+        this.stage = 'flop';
+        this.startBettingRound();
         return true;
     }
 
-    // -----------------------------------------
-    // Poker Hand Evaluation Logic
-    // -----------------------------------------
+    dealTurn() {
+        if (this.stage !== 'flop') return false;
+        if (this.bettingRoundActive && this.playersToAct.length > 0) return false;
+
+        this.communityCards.push(...this.deck.deal(1));
+        this.stage = 'turn';
+        this.startBettingRound();
+        return true;
+    }
+
+    dealRiver() {
+        if (this.stage !== 'turn') return false;
+        if (this.bettingRoundActive && this.playersToAct.length > 0) return false;
+
+        this.communityCards.push(...this.deck.deal(1));
+        this.stage = 'river';
+        this.startBettingRound();
+        return true;
+    }
+
+    // ---------------- Betting ----------------
+    placeBet(playerId, amount = 0, action = "call") {
+        if (!this.bettingRoundActive) return false;
+
+        const player = this.players[this.currentTurnIndex];
+        if (player.userId !== playerId) return false;
+        if (!player.isActive || player.chips <= 0) return false;
+
+        switch (action) {
+            case "fold":
+                player.isActive = false;
+                break;
+
+            case "call":
+                const toCall = this.lastBetAmount - player.currentBet;
+                const callAmount = Math.min(toCall, player.chips);
+                player.chips -= callAmount;
+                player.currentBet += callAmount;
+                this.pot += callAmount;
+                break;
+
+            case "raise":
+                if (amount < this.minimumBet) return false;
+                const raiseTotal = (this.lastBetAmount - player.currentBet) + amount;
+                if (raiseTotal > player.chips) return false;
+                player.chips -= raiseTotal;
+                player.currentBet += raiseTotal;
+                this.pot += raiseTotal;
+                this.lastBetAmount = player.currentBet;
+
+                // Other players need to act again
+                this.playersToAct = this.players.filter(p => p.isActive && p.userId !== player.userId && p.currentBet < this.lastBetAmount);
+                break;
+        }
+
+        // Remove current player from queue
+        this.playersToAct = this.playersToAct.filter(p => p.userId !== player.userId);
+
+        // Advance turn or end betting round
+        if (this.playersToAct.length > 0) {
+            const nextPlayer = this.playersToAct[0];
+            this.currentTurnIndex = this.players.findIndex(p => p.userId === nextPlayer.userId);
+        } else {
+            // Betting round complete
+            this.bettingRoundActive = false;
+            this.players.forEach(p => p.currentBet = 0); // reset for next stage
+        }
+
+        return true;
+    }
+
+    // ---------------- Showdown ----------------
+    showdown() {
+        let winners = [];
+        let best = null;
+
+        this.players.forEach(player => {
+            const allCards = [...player.hand, ...this.communityCards];
+            const handResult = this.evaluateHand(allCards);
+
+            if (!best || handResult.rank > best.rank || (handResult.rank === best.rank && this.compareTiebreakers(handResult.tiebreaker, best.tiebreaker) > 0)) {
+                best = handResult;
+                winners = [{ player, handResult }];
+            } else if (handResult.rank === best.rank && this.compareTiebreakers(handResult.tiebreaker, best.tiebreaker) === 0) {
+                winners.push({ player, handResult });
+            }
+        });
+
+        // Award pot
+        if (winners.length > 0) {
+            const share = Math.floor(this.pot / winners.length);
+            winners.forEach(w => w.player.chips += share);
+        }
+
+        this.pot = 0;
+        this.players.forEach(p => p.currentBet = 0);
+
+        this.stage = 'showdown';
+        this.bettingRoundActive = false;
+
+        return { winners, communityCards: this.communityCards, pot: this.pot };
+    }
+
+    // ---------------- Hand Evaluation Helpers ----------------
     evaluateHand(cards) {
         const values = cards.map(c => this.rankValue(c.rank)).sort((a, b) => b - a);
         const suits = cards.map(c => c.suit);
@@ -146,7 +262,7 @@ export default class Table {
 
         // Straight Flush
         if (flushSuit) {
-            const sf = getStraightFlush(cards, flushSuit);
+            const sf = this.getStraightFlush(cards, flushSuit);
             if (sf) return sf;
         }
 
@@ -166,99 +282,12 @@ export default class Table {
             return { rank: 7, name: "Full House", tiebreaker: [three, pair] };
         }
 
-        // Flush
-        if (flushSuit) {
-            return { rank: 6, name: "Flush", tiebreaker: flushCards.slice(0, 5) };
-        }
-
-        // Straight
-        if (straightHigh !== null) {
-            return { rank: 5, name: "Straight", tiebreaker: [straightHigh] };
-        }
-
-        // Three of a Kind
-        if (threeVals.length) {
-            const three = threeVals[0];
-            const kickers = sortedByFreq.filter(v => v !== three).slice(0, 2);
-            return { rank: 4, name: "Three of a Kind", tiebreaker: [three, ...kickers] };
-        }
-
-        // Two Pair
-        if (pairVals.length >= 2) {
-            const [highPair, lowPair] = pairVals.slice(0, 2);
-            const kicker = sortedByFreq.find(v => v !== highPair && v !== lowPair);
-            return { rank: 3, name: "Two Pair", tiebreaker: [highPair, lowPair, kicker] };
-        }
-
-        // One Pair
-        if (pairVals.length === 1) {
-            const pair = pairVals[0];
-            const kickers = sortedByFreq.filter(v => v !== pair).slice(0, 3);
-            return { rank: 2, name: "One Pair", tiebreaker: [pair, ...kickers] };
-        }
-
-        // High Card
+        if (flushSuit) return { rank: 6, name: "Flush", tiebreaker: flushCards.slice(0, 5) };
+        if (straightHigh !== null) return { rank: 5, name: "Straight", tiebreaker: [straightHigh] };
+        if (threeVals.length) return { rank: 4, name: "Three of a Kind", tiebreaker: [threeVals[0], ...sortedByFreq.filter(v => v !== threeVals[0]).slice(0, 2)] };
+        if (pairVals.length >= 2) return { rank: 3, name: "Two Pair", tiebreaker: [pairVals[0], pairVals[1], ...sortedByFreq.filter(v => ![pairVals[0], pairVals[1]].includes(v)).slice(0, 1)] };
+        if (pairVals.length === 1) return { rank: 2, name: "One Pair", tiebreaker: [pairVals[0], ...sortedByFreq.filter(v => v !== pairVals[0]).slice(0, 3)] };
         return { rank: 1, name: "High Card", tiebreaker: values.slice(0, 5) };
-    }
-
-
-    // -----------------------------------------
-    // Determine Winners (Handles Ties)
-    // -----------------------------------------
-    showdown() {
-        let winners = [];
-        let best = null;
-
-        this.players.forEach(player => {
-            const allCards = [...player.hand, ...this.communityCards];
-            const handResult = this.evaluateHand(allCards);
-
-            if (
-                !best ||
-                handResult.rank > best.rank ||
-                (handResult.rank === best.rank &&
-                    this.compareTiebreakers(handResult.tiebreaker, best.tiebreaker) > 0)
-            ) {
-                best = handResult;
-                winners = [{
-                    player,
-                    handResult: {
-                        name: handResult.name,
-                        rank: handResult.rank,
-                        tiebreaker: handResult.tiebreaker
-                    }
-                }];
-            } else if (
-                handResult.rank === best.rank &&
-                this.compareTiebreakers(handResult.tiebreaker, best.tiebreaker) === 0
-            ) {
-                winners.push({
-                    player,
-                    handResult: {
-                        name: handResult.name,
-                        rank: handResult.rank,
-                        tiebreaker: handResult.tiebreaker
-                    }
-                });
-            }
-        });
-
-        // Award pot to winners (split if tie)
-        if (winners.length > 0) {
-            const share = Math.floor(this.pot / winners.length);
-            winners.forEach(w => w.player.chips += share);
-        }
-
-        // Reset pot and current bets (but NOT hands/community cards)
-        this.pot = 0;
-        this.players.forEach(p => p.currentBet = 0);
-
-        // Include detailed info for UI
-        return {
-            winners,
-            communityCards: this.communityCards,
-            pot: this.pot
-        };
     }
 
     compareTiebreakers(a, b) {
@@ -266,7 +295,7 @@ export default class Table {
             if ((a[i] || 0) > (b[i] || 0)) return 1;
             if ((a[i] || 0) < (b[i] || 0)) return -1;
         }
-        return 0; // exact tie
+        return 0;
     }
 
     countRanks(values) {
@@ -292,7 +321,6 @@ export default class Table {
         return null;
     }
 
-
     getFlushSuit(suits) {
         const suitCount = suits.reduce((acc, s) => ((acc[s] = (acc[s] || 0) + 1), acc), {});
         return Object.keys(suitCount).find(s => suitCount[s] >= 5);
@@ -301,12 +329,7 @@ export default class Table {
     getStraightFlush(cards, flushSuit) {
         const flushCards = cards.filter(c => c.suit === flushSuit).map(c => this.rankValue(c.rank));
         const high = this.getStraightHigh(flushCards);
-        if (high !== null) {
-            return high === 12
-                ? { rank: 10, name: "Royal Flush", tiebreaker: [12] }
-                : { rank: 9, name: "Straight Flush", tiebreaker: [high] };
-        }
+        if (high !== null) return high === 12 ? { rank: 10, name: "Royal Flush", tiebreaker: [12] } : { rank: 9, name: "Straight Flush", tiebreaker: [high] };
         return null;
     }
-
 }

@@ -3,52 +3,38 @@ import tableManager from '../game/tableManager.js';
 export default (io) => {
     io.on('connection', (socket) => {
 
-        // -------------------------------
-        // HELPER: Sync Table State to All Players
-        // -------------------------------
         function syncTableToAll(table) {
             table.players.forEach(player => {
                 io.to(player.socketId).emit('tableDetails', table.getDetails(player.userId));
             });
         }
 
-        // -------------------------------
-        // HELPER: Add or Reconnect Player to Table
-        // -------------------------------
         function addPlayerToTable({ tableId, socketId, userId, username }) {
             const table = tableManager.getTable(tableId);
             if (!table) return false;
 
             const existingPlayer = table.players.find(p => p.userId === userId);
             if (existingPlayer) {
-                // Reconnecting: update socketId
                 existingPlayer.socketId = socketId;
             } else {
-                // New player
                 table.addPlayer({ socketId, userId, username });
             }
 
             socket.join(tableId);
-
-            // Send full table state (with THEIR cards visible)
             io.to(socketId).emit('joinedTable', {
                 tableId,
                 table: table.getDetails(userId)
             });
 
-            // Notify others someone joined/reconnected
             socket.to(tableId).emit('playerJoined', {
                 userId,
-                players: table.getDetails().players // Hidden cards for others
+                players: table.getDetails().players
             });
 
             syncTableToAll(table);
             return true;
         }
 
-        // -------------------------------
-        // HELPER: Remove Player from Table
-        // -------------------------------
         function removePlayerFromTable({ tableId, userId }) {
             const table = tableManager.getTable(tableId);
             if (!table) return false;
@@ -97,10 +83,7 @@ export default (io) => {
 
         socket.on('getTableDetails', ({ tableId, userId }) => {
             const table = tableManager.getTable(tableId);
-            if (!table) {
-                io.to(socket.id).emit('error', { message: 'Table not found' });
-                return;
-            }
+            if (!table) return io.to(socket.id).emit('error', { message: 'Table not found' });
             io.to(socket.id).emit('tableDetails', table.getDetails(userId));
         });
 
@@ -108,27 +91,33 @@ export default (io) => {
             const table = tableManager.getTable(tableId);
             if (!table) return io.to(socket.id).emit('error', { message: 'Table not found' });
 
-            const player = table.players.find(p => p.userId === userId);
-            if (!player) return io.to(socket.id).emit('error', { message: 'You are not part of this table' });
+            // ✅ Only table owner can start
+            if (table.ownerId !== userId) {
+                return io.to(socket.id).emit('error', { message: 'Only the table owner can start the game' });
+            }
 
-            table.startGame();
+            // Start the game
+            const success = table.startGame(userId); // pass userId to ensure owner check
+            if (!success) return io.to(socket.id).emit('error', { message: 'Failed to start the game' });
 
-            // Send private hand to each player
+            // Send private hands to each player
             table.players.forEach(p => {
                 io.to(p.socketId).emit('yourHand', { hand: p.hand });
             });
 
-            // Notify everyone game started
-            io.in(tableId).emit('gameStarted', { startedBy: userId });
+            // Notify everyone the game has started
+            io.in(tableId).emit('gameStarted', { startedBy: userId, stage: table.stage });
 
-            // Notify first player to act
+            // Notify whose turn it is
             const currentPlayer = table.getCurrentPlayer();
             io.in(tableId).emit('playerTurn', { userId: currentPlayer.userId });
 
             syncTableToAll(table);
         });
 
-        socket.on('bet', ({ tableId, userId, amount }) => {
+
+
+        socket.on('bet', ({ tableId, userId, amount, action }) => {
             const table = tableManager.getTable(tableId);
             if (!table) return;
 
@@ -137,48 +126,76 @@ export default (io) => {
                 return io.to(socket.id).emit('error', { message: "It's not your turn" });
             }
 
-            const success = table.placeBet(userId, amount);
+            // amount is only used for raise; call/fold ignores it
+            const success = table.placeBet(userId, amount, action);
 
             io.in(tableId).emit('betPlaced', {
                 userId,
+                action,
+                amount,
                 success,
                 pot: table.pot,
-                currentBet: table.currentBet
+                currentBet: table.lastBetAmount,
+                stage: table.stage
             });
 
             if (success) {
-                const nextPlayer = table.getCurrentPlayer();
-                io.in(tableId).emit('playerTurn', { userId: nextPlayer.userId });
+                if (table.bettingRoundActive && table.playersToAct.length > 0) {
+                    const nextPlayer = table.getCurrentPlayer();
+                    io.in(tableId).emit('playerTurn', { userId: nextPlayer.userId });
+                } else {
+                    io.in(tableId).emit('bettingRoundComplete', { stage: table.stage });
+                }
             }
 
             syncTableToAll(table);
         });
 
-        socket.on('nextStage', ({ tableId, stage }) => {
+
+        socket.on('nextStage', ({ tableId }) => {
             const table = tableManager.getTable(tableId);
             if (!table) return;
 
-            if (stage === 'flop') table.dealFlop();
-            else if (stage === 'turn') table.dealTurn();
-            else if (stage === 'river') table.dealRiver();
+            if (table.bettingRoundActive && table.playersToAct.length > 0) {
+                return io.to(socket.id).emit('error', { message: 'All players must act before moving to next stage' });
+            }
 
-            io.in(tableId).emit('communityCards', table.communityCards);
+            let stageUpdated = false;
 
-            // Reset turn to first active player after each stage
-            table.currentTurnIndex = 0;
+            if (table.stage === 'preflop') stageUpdated = table.dealFlop();
+            else if (table.stage === 'flop') stageUpdated = table.dealTurn();
+            else if (table.stage === 'turn') stageUpdated = table.dealRiver();
+            else {
+                return io.to(socket.id).emit('error', { message: 'No further stage available' });
+            }
+
+            if (!stageUpdated) {
+                return io.to(socket.id).emit('error', { message: 'Cannot deal this stage yet' });
+            }
+
+            io.in(tableId).emit('communityCards', { cards: table.communityCards, stage: table.stage });
+
+            // Only start a new betting round if the stage was successfully updated
+            table.startBettingRound();
             const currentPlayer = table.getCurrentPlayer();
             io.in(tableId).emit('playerTurn', { userId: currentPlayer.userId });
 
             syncTableToAll(table);
         });
 
+
         socket.on('showdown', ({ tableId }) => {
             const table = tableManager.getTable(tableId);
             if (!table) return;
 
-            const result = table.showdown();
-            io.in(tableId).emit('winner', result);
+            if (table.stage !== 'river' || (table.bettingRoundActive && table.playersToAct.length > 0)) {
+                return io.to(socket.id).emit('error', { message: 'Cannot showdown before all players act on river' });
+            }
 
+            const result = table.showdown();
+            table.stage = 'showdown';
+
+            io.in(tableId).emit('winner', result);
             syncTableToAll(table);
         });
 
