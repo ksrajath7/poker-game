@@ -28,7 +28,7 @@ export default function PlayingCard({ rank, suit }) {
     }, []);
 
     return (
-        <div className="w-20 h-28 select-none">
+        <div className="w-14 h-20 select-none">
             <div
                 className={`relative w-full h-full transition-transform duration-700 ease-in-out [transform-style:preserve-3d] ${flipped ? '[transform:rotateY(180deg)]' : ''
                     }`}
@@ -41,16 +41,16 @@ export default function PlayingCard({ rank, suit }) {
                 />
 
                 {/* Card Front */}
-                <div className="absolute w-full h-full rounded bg-white shadow-md [backface-visibility:hidden] [transform:rotateY(180deg)] p-1">
-                    <div className="relative w-full h-full rounded border border-gray-300 flex flex-col justify-between p-1">
+                <div className="absolute w-full h-full rounded bg-white shadow-md [backface-visibility:hidden] [transform:rotateY(180deg)] p-0.5">
+                    <div className="relative w-full h-full rounded flex flex-col justify-between">
                         {/* Top-left corner */}
-                        <div className="absolute top-0.5 left-1 flex flex-col items-center text-xs">
+                        <div className="absolute top-0 left-0 flex flex-col items-center text-xs">
                             <div className={`${textColor} font-bold`}>{rank}</div>
                             <img src={suitImage} alt={`${suit} symbol`} className="w-3 h-3" />
                         </div>
 
                         {/* Bottom-right corner */}
-                        <div className="absolute bottom-0.5 right-1 flex flex-col items-center text-xs rotate-180">
+                        <div className="absolute bottom-0 right-0 flex flex-col items-center text-xs rotate-180">
                             <div className={`${textColor} font-bold`}>{rank}</div>
                             <img src={suitImage} alt={`${suit} symbol`} className="w-3 h-3" />
                         </div>

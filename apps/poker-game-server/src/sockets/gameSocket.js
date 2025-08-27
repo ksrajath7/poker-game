@@ -9,113 +9,45 @@ export default (io) => {
             });
         }
 
-        function addPlayerToTable({ tableId, socketId, userId, username }) {
-            const table = tableManager.getTable(tableId);
-            if (!table) return false;
-
-            const existingPlayer = table.players.find(p => p.userId === userId);
-            if (existingPlayer) {
-                existingPlayer.socketId = socketId;
-            } else {
-                table.addPlayer({ socketId, userId, username });
-            }
-
-            socket.join(tableId);
-            io.to(socketId).emit('joinedTable', {
-                tableId,
-                table: table.getDetails(userId)
-            });
-
-            socket.to(tableId).emit('playerJoined', {
-                userId,
-                players: table.getDetails().players
-            });
-
-            syncTableToAll(table);
-            return true;
-        }
-
-        function removePlayerFromTable({ tableId, userId }) {
-            const table = tableManager.getTable(tableId);
-            if (!table) return false;
-
-            const removed = table.removePlayer(userId);
-            if (!removed) return false;
-
-            io.to(removed.socketId).emit('removedFromTable', {
-                tableId,
-                message: 'You have been removed from the table.'
-            });
-
-            io.in(tableId).emit('playerLeft', {
-                userId,
-                players: table.getDetails().players
-            });
-
-            syncTableToAll(table);
-            return true;
-        }
-
-        // -------------------------------
-        // SOCKET EVENTS
-        // -------------------------------
-
         socket.on('createTable', ({ userId, username }) => {
             const tableId = Math.floor(100000 + Math.random() * 900000);
-            if (tableManager.getTable(tableId)) {
-                io.to(socket.id).emit('tableExists', { tableId });
-                return;
-            }
+            if (tableManager.getTable(tableId)) return io.to(socket.id).emit('tableExists', { tableId });
 
             tableManager.createTable(tableId);
-            addPlayerToTable({ tableId, socketId: socket.id, userId, username });
+            const table = tableManager.getTable(tableId);
+            table.addPlayer({ socketId: socket.id, userId, username });
 
-            io.to(socket.id).emit('tableCreated', {
-                tableId,
-                table: tableManager.getTable(tableId).getDetails(userId)
-            });
+            socket.join(tableId);
+            io.to(socket.id).emit('tableCreated', { tableId, table: table.getDetails(userId) });
+            syncTableToAll(table);
         });
 
         socket.on('joinTable', ({ tableId, userId, username }) => {
-            const success = addPlayerToTable({ tableId, socketId: socket.id, userId, username });
-            if (!success) io.to(socket.id).emit('error', { message: 'Table does not exist' });
-        });
-
-        socket.on('getTableDetails', ({ tableId, userId }) => {
             const table = tableManager.getTable(tableId);
-            if (!table) return io.to(socket.id).emit('error', { message: 'Table not found' });
-            io.to(socket.id).emit('tableDetails', table.getDetails(userId));
-        });
+            if (!table) return io.to(socket.id).emit('error', { message: 'Table does not exist' });
 
-        socket.on('startGame', ({ tableId, userId }) => {
-            const table = tableManager.getTable(tableId);
-            if (!table) return io.to(socket.id).emit('error', { message: 'Table not found' });
-
-            // Optional: only allow table owner or first player to restart
-            table.startGame();
-
-            table.players.forEach(p => {
-                io.to(p.socketId).emit('yourHand', { hand: p.hand });
-            });
-
-            io.in(tableId).emit('gameStarted', { startedBy: userId, stage: table.stage });
-            const currentPlayer = table.getCurrentPlayer();
-            io.in(tableId).emit('playerTurn', { userId: currentPlayer.userId });
-
+            table.addPlayer({ socketId: socket.id, userId, username });
+            socket.join(tableId);
+            io.in(tableId).emit('playerJoined', { userId, players: table.getDetails().players });
+            io.to(socket.id).emit('joinedTable', { tableId, table: table.getDetails(userId) });
             syncTableToAll(table);
         });
 
+        socket.on('startGame', ({ tableId }) => {
+            const table = tableManager.getTable(tableId);
+            if (!table) return io.to(socket.id).emit('error', { message: 'Table not found' });
+
+            table.startGame();
+            table.players.forEach(p => io.to(p.socketId).emit('yourHand', { hand: p.hand }));
+            io.in(tableId).emit('gameStarted', { stage: table.stage });
+            io.in(tableId).emit('playerTurn', { userId: table.getCurrentPlayer().userId });
+            syncTableToAll(table);
+        });
 
         socket.on('bet', ({ tableId, userId, amount, action }) => {
             const table = tableManager.getTable(tableId);
             if (!table) return;
 
-            const currentPlayer = table.getCurrentPlayer();
-            if (!currentPlayer || currentPlayer.userId !== userId) {
-                return io.to(socket.id).emit('error', { message: "It's not your turn" });
-            }
-
-            // amount is only used for raise; call/fold ignores it
             const success = table.placeBet(userId, amount, action);
 
             io.in(tableId).emit('betPlaced', {
@@ -128,18 +60,14 @@ export default (io) => {
                 stage: table.stage
             });
 
-            if (success) {
-                if (table.bettingRoundActive && table.playersToAct.length > 0) {
-                    const nextPlayer = table.getCurrentPlayer();
-                    io.in(tableId).emit('playerTurn', { userId: nextPlayer.userId });
-                } else {
-                    io.in(tableId).emit('bettingRoundComplete', { stage: table.stage });
-                }
+            if (table.bettingRoundActive && table.playersToAct.length > 0) {
+                io.in(tableId).emit('playerTurn', { userId: table.getCurrentPlayer().userId });
+            } else if (!table.bettingRoundActive) {
+                io.in(tableId).emit('bettingRoundComplete', { stage: table.stage });
             }
 
             syncTableToAll(table);
         });
-
 
         socket.on('nextStage', ({ tableId }) => {
             const table = tableManager.getTable(tableId);
@@ -150,7 +78,6 @@ export default (io) => {
             }
 
             let stageUpdated = false;
-
             if (table.stage === 'preflop') stageUpdated = table.dealFlop();
             else if (table.stage === 'flop') stageUpdated = table.dealTurn();
             else if (table.stage === 'turn') stageUpdated = table.dealRiver();
@@ -164,7 +91,6 @@ export default (io) => {
 
             io.in(tableId).emit('communityCards', { cards: table.communityCards, stage: table.stage });
 
-            // Only start a new betting round if the stage was successfully updated
             table.startBettingRound();
             const currentPlayer = table.getCurrentPlayer();
             io.in(tableId).emit('playerTurn', { userId: currentPlayer.userId });
@@ -176,25 +102,25 @@ export default (io) => {
         socket.on('showdown', ({ tableId }) => {
             const table = tableManager.getTable(tableId);
             if (!table) return;
-
-            if (table.stage !== 'river' || (table.bettingRoundActive && table.playersToAct.length > 0)) {
-                return io.to(socket.id).emit('error', { message: 'Cannot showdown before all players act on river' });
-            }
-
             const result = table.showdown();
-            table.stage = 'showdown';
-
             io.in(tableId).emit('winner', result);
             syncTableToAll(table);
         });
 
         socket.on('exitGame', ({ tableId, userId }) => {
-            const success = removePlayerFromTable({ tableId, userId });
-            if (!success) io.to(socket.id).emit('error', { message: 'Table does not exist' });
+            const table = tableManager.getTable(tableId);
+            if (!table) return io.to(socket.id).emit('error', { message: 'Table does not exist' });
+
+            const removed = table.removePlayer(userId);
+            if (removed) {
+                io.in(tableId).emit('playerLeft', { userId, players: table.getDetails().players });
+                io.to(removed.socketId).emit('removedFromTable', { tableId, message: 'You have been removed from the table.' });
+            }
+            syncTableToAll(table);
         });
 
         socket.on('disconnect', () => {
-            // Optional: mark player offline or remove them from table
+            // Optional: handle disconnect
         });
     });
 };

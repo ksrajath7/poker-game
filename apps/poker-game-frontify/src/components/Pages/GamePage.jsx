@@ -8,6 +8,9 @@ function GamePage() {
     const { joinedTableId } = useParams();
     const navigate = useNavigate();
 
+    const [isTableInfoOpen, setIsTableInfoOpen] = useState(false);
+    const [isCopied, setIsCopied] = useState(false);
+
     const [players, setPlayers] = useState([]);
     const [communityCards, setCommunityCards] = useState([]);
     const [pot, setPot] = useState(0);
@@ -120,64 +123,124 @@ function GamePage() {
     const handleNextStage = () => socket.emit("nextStage", { tableId: joinedTableId });
     const handleShowdown = () => socket.emit("showdown", { tableId: joinedTableId });
     const handleExitGame = () => socket.emit("exitGame", { tableId: joinedTableId, userId });
+    const handleCopy = (e) => {
+        e.stopPropagation(); // Prevent toggling the panel
+        navigator.clipboard.writeText(`${window.location.origin}/join/${joinedTableId}`);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 1000); // Show "Copied!" for 3 seconds
+    };
 
     // -------------------------------
     // UI
     // -------------------------------
     return (
-        <div className="min-h-[100svh] bg-gradient-to-br from-gray-900 to-black text-white relative flex items-center justify-center">
+        <div className="min-h-[100svh] overflow-auto bg-gradient-to-br from-gray-900 to-black text-white relative flex items-center justify-center">
 
-            {/* Top-Right Table Info & Invite */}
-            <div className="absolute top-4 right-4 bg-gray-900 bg-opacity-95 p-4 rounded-2xl shadow-2xl w-64 text-center z-50 flex flex-col items-center gap-3">
-                <div className="flex items-center justify-center gap-2">
-                    <h2 className="text-lg font-extrabold text-yellow-400 truncate">Table: {joinedTableId}</h2>
-                    <button onClick={() => navigator.clipboard.writeText(`${joinedTableId}`)} className="text-gray-300 hover:text-white transition text-lg cursor-pointer" title="Copy Table URL">📋</button>
+
+
+
+            {/* Top-Left Table Info & Invite */}
+            <div className="absolute top-4 left-4 z-50 w-64">
+                {/* Header / Toggle Button */}
+                <div
+                    className="bg-gray-800 bg-opacity-95 p-3 rounded-2xl shadow-2xl flex items-center justify-between cursor-pointer"
+                    onClick={() => setIsTableInfoOpen(!isTableInfoOpen)}
+                >
+                    <div className="flex items-center justify-center gap-2">
+                        <h2 className="text-lg font-extrabold text-yellow-400 truncate">Table: {joinedTableId}</h2>
+                        <button
+                            onClick={handleCopy}
+                            className="text-gray-300 hover:text-white transition text-xs cursor-pointer"
+                            title="Copy Table URL"
+                        >
+                            {isCopied ? "Copied!" : "Copy link"}
+                        </button>
+                    </div>
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp" className="w-5 h-5" />
+
+                    {/* <span className="text-gray-300">{isTableInfoOpen ? "🡩" : "🡫"}</span> */}
                 </div>
-                <p className="text-gray-300 italic text-xs text-center">Invite your friends to join the game!</p>
-                <div className="flex justify-center gap-2 w-full">
-                    <a href={`https://api.whatsapp.com/send?text=Join my poker table! ${window.location.origin}/join/${joinedTableId}`} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 px-3 py-1 bg-green-600 text-white rounded-full hover:bg-green-700 transition font-semibold shadow-md cursor-pointer text-sm">
-                        <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp" className="w-5 h-5" /> WhatsApp
-                    </a>
-                </div>
-                <div className="flex flex-col gap-1 mt-2 text-xs text-gray-200">
-                    <p>Pot: <span className="text-green-400 font-bold">${pot}</span> | Current Bet: <span className="text-yellow-400 font-bold">${currentBet}</span></p>
-                    {currentTurn && <p className={`font-medium ${currentTurn === userId ? 'text-indigo-400' : 'text-pink-400'}`}>{currentTurn === userId ? "⏳ Your turn!" : `🎯 ${players.find(p => p.userId === currentTurn)?.username}'s turn`}</p>}
-                </div>
+
+                {/* Collapsible Content */}
+                {isTableInfoOpen && (
+                    <div className="bg-gray-900 bg-opacity-95 p-4 rounded-2xl shadow-2xl mt-2 flex flex-col items-center gap-3">
+
+
+                        <p className="text-gray-300 italic text-xs text-center">Invite your friends to join the game!</p>
+
+                        <div className="flex justify-center gap-2 w-full">
+                            <a
+                                href={`https://api.whatsapp.com/send?text=Join my poker table! ${window.location.origin}/join/${joinedTableId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1 flex items-center justify-center gap-2 px-3 py-1 bg-green-600 text-white rounded-full hover:bg-green-700 transition font-semibold shadow-md cursor-pointer text-sm"
+                            >
+                                <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp" className="w-5 h-5" /> WhatsApp
+                            </a>
+                        </div>
+
+
+                    </div>
+                )}
             </div>
 
-            {/* Community Cards */}
-            <div className="flex flex-col items-center gap-4 z-10">
-                <div className="flex justify-center gap-2 flex-wrap mb-4">
-                    {communityCards.map((c, i) => <PlayingCard key={i} rank={c.rank} suit={c.suit} />)}
-                </div>
-                <div className="text-center mb-4">
-                    <h4 className="text-sm font-semibold mb-2">Your Hand</h4>
-                    <div className="flex justify-center gap-2 flex-wrap">
-                        {hand.length ? hand.map((c, i) => <PlayingCard key={i} rank={c.rank} suit={c.suit} />) : <p>Waiting for deal...</p>}
+            <button onClick={handleExitGame} className="absolute top-4 right-4 z-50 px-4 py-2 rounded bg-gray-800 text-white hover:bg-gray-900 transition">🚪 Exit</button>
+
+
+
+            {/* Poker Table */}
+            <div className="relative w-full h-[600px] flex items-center justify-center">
+                {/* Table Circle */}
+                <div className="absolute w-[500px] h-[500px] bg-green-800 rounded-full shadow-2xl flex items-center justify-center">
+                    {/* Community Cards */}
+                    <div className="flex flex-col items-center gap-4 z-10">
+                        <div className="flex justify-center gap-2 flex-wrap mb-4">
+                            {communityCards.map((c, i) => <PlayingCard key={i} rank={c.rank} suit={c.suit} />)}
+                        </div>
+                        <div className="flex flex-col gap-1 mt-2 text-xs text-gray-200">
+                            <p>
+                                Pot: <span className="text-green-400 font-bold">${pot}</span> | Current Bet: <span className="text-yellow-400 font-bold">${currentBet}</span>
+                            </p>
+                            {currentTurn && (
+                                <p className={`text-center font-medium ${currentTurn === userId ? 'text-indigo-400' : 'text-pink-400'}`}>
+                                    {currentTurn === userId ? "⏳ Your turn!" : `🎯 ${players.find(p => p.userId === currentTurn)?.username}'s turn`}
+                                </p>
+                            )}
+                        </div>
+                        <div className="text-center mb-4">
+                            <h4 className="text-sm font-semibold mb-2">Your Hand</h4>
+                            <div className="flex justify-center gap-2 flex-wrap">
+                                {hand.length ? hand.map((c, i) => <PlayingCard key={i} rank={c.rank} suit={c.suit} />) : <p>Waiting for deal...</p>}
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            {/* Players Around Table */}
-            <div className="absolute inset-0 flex items-center justify-center">
+                {/* Players Around Table */}
                 {players.map((p, i) => {
                     const isWinner = winners.some(w => w.player.userId === p.userId);
                     const winnerInfo = winners.find(w => w.player.userId === p.userId);
 
                     const angle = (360 / players.length) * i;
-                    const radius = 250;
+                    const radius = 220; // radius smaller than table for spacing
                     const x = radius * Math.cos((angle * Math.PI) / 180);
                     const y = radius * Math.sin((angle * Math.PI) / 180);
 
                     return (
-                        <div key={i} className="absolute">
-
-                            <div className={` p-3 rounded-lg bg-gray-800 transition
-                            ${currentTurn === p.userId ? "box a" : ""}
-                            ${isWinner ? "border-2 border-green-400" : ""}`} style={{ transform: `translate(${x}px, ${y}px)`, textAlign: "center", minWidth: "90px" }}>
-                                <p className="font-semibold">{p.username}</p>
+                        <div key={i} className="absolute" style={{ transform: `translate(${x}px, ${y}px)` }}>
+                            <div className={`
+                    p-3 rounded-xl bg-gray-900 bg-opacity-90 text-center shadow-lg transition-all duration-300
+                    ${currentTurn === p.userId ? "ring-4 ring-yellow-400 box a" : ""}
+                    ${isWinner ? "border-4 border-green-400" : ""}
+                    hover:scale-110
+                `} style={{ minWidth: "100px" }}>
+                                <p className="font-semibold text-white">{p.username}</p>
                                 <p className="text-sm text-green-300">Chips: ${p.chips}</p>
-                                {isWinner && winnerInfo && <p className="text-xs text-green-200 mt-1">Winner: {winnerInfo.handResult.name} ({winnerInfo.handResult.rank})</p>}
+                                {isWinner && winnerInfo && (
+                                    <p className="text-xs text-green-200 mt-1">
+                                        Winner: {winnerInfo.handResult.name} ({winnerInfo.handResult.rank})
+                                    </p>
+                                )}
                             </div>
                         </div>
                     );
@@ -207,7 +270,6 @@ function GamePage() {
                     <button onClick={handleShowdown} className="px-4 py-2 rounded bg-purple-600 text-white hover:bg-purple-700 transition">🏁 Showdown</button>
                 )}
 
-                <button onClick={handleExitGame} className="px-4 py-2 rounded bg-gray-800 text-white hover:bg-gray-900 transition">🚪 Exit</button>
             </div>
         </div>
     );

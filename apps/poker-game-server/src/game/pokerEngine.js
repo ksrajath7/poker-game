@@ -6,7 +6,6 @@ export default class Table {
         this.communityCards = [];
         this.deck = new DeckService();
         this.pot = 0;
-        this.currentBet = 0;
         this.lastBetAmount = 0;
         this.rankOrder = "23456789TJQKA";
 
@@ -19,7 +18,6 @@ export default class Table {
         this.playersToAct = [];
     }
 
-    // Helper to get rank value
     rankValue = r => this.rankOrder.indexOf(r);
 
     // ---------------- Player Management ----------------
@@ -34,6 +32,10 @@ export default class Table {
                 currentBet: 0,
                 isActive: true
             });
+        } else {
+            // Update socketId if already exists
+            const existing = this.players.find(p => p.userId === userId);
+            existing.socketId = socketId;
         }
     }
 
@@ -43,7 +45,7 @@ export default class Table {
 
         const [removed] = this.players.splice(index, 1);
 
-        // Redistribute chips if needed
+        // Redistribute chips
         const activePlayers = this.players.filter(p => p.isActive);
         if (activePlayers.length > 0 && removed.chips > 0) {
             const share = Math.floor(removed.chips / activePlayers.length);
@@ -55,6 +57,10 @@ export default class Table {
         }
 
         return removed;
+    }
+
+    getCurrentPlayer() {
+        return this.players[this.currentTurnIndex];
     }
 
     // ---------------- Table Details ----------------
@@ -78,52 +84,37 @@ export default class Table {
         };
     }
 
-    // ---------------- Game Management ----------------
+    // ---------------- Game Flow ----------------
     startGame() {
-        // Reset deck & community
         this.deck.resetDeck();
         this.communityCards = [];
         this.pot = 0;
-        this.currentBet = 0;
         this.lastBetAmount = this.minimumBet;
         this.currentTurnIndex = 0;
         this.stage = 'preflop';
         this.isGameStarted = true;
         this.bettingRoundActive = false;
 
-        // Reset players
         this.players.forEach(p => {
             p.hand = this.deck.deal(2);
             p.currentBet = 0;
             p.isActive = true;
         });
 
-        // Start first betting round
         this.startBettingRound();
     }
 
     startBettingRound() {
         this.bettingRoundActive = true;
-
-        // Reset currentBet for all players
         this.players.forEach(p => p.currentBet = 0);
-
-        // Players eligible to act
         this.playersToAct = this.players.filter(p => p.isActive && p.chips > 0);
-
-        // Set first active player's turn
         if (this.playersToAct.length > 0) {
             this.currentTurnIndex = this.players.findIndex(p => p.userId === this.playersToAct[0].userId);
         }
     }
 
-    getCurrentPlayer() {
-        return this.players[this.currentTurnIndex];
-    }
-
     nextTurn() {
         if (!this.bettingRoundActive || this.playersToAct.length === 0) return null;
-
         const nextPlayer = this.playersToAct.shift();
         this.currentTurnIndex = this.players.findIndex(p => p.userId === nextPlayer.userId);
         return nextPlayer;
@@ -131,21 +122,18 @@ export default class Table {
 
     // ---------------- Dealing ----------------
     dealFlop() {
-        if (!this.isGameStarted) return false; // ✅ check game started
+        if (!this.isGameStarted) return false;
         if (this.stage !== 'preflop') return false;
         if (this.bettingRoundActive && this.playersToAct.length > 0) return false;
 
         this.communityCards.push(...this.deck.deal(3));
         this.stage = 'flop';
-        this.startBettingRound();
+        this.startBettingRound();  // ✅ this resets playersToAct and bettingRoundActive
         return true;
     }
 
     dealTurn() {
-        if (!this.isGameStarted) return false; // ✅ check game started
-        if (this.stage !== 'flop') return false;
-        if (this.bettingRoundActive && this.playersToAct.length > 0) return false;
-
+        if (!this.isGameStarted || this.stage !== 'flop' || (this.bettingRoundActive && this.playersToAct.length > 0)) return false;
         this.communityCards.push(...this.deck.deal(1));
         this.stage = 'turn';
         this.startBettingRound();
@@ -153,10 +141,7 @@ export default class Table {
     }
 
     dealRiver() {
-        if (!this.isGameStarted) return false; // ✅ check game started
-        if (this.stage !== 'turn') return false;
-        if (this.bettingRoundActive && this.playersToAct.length > 0) return false;
-
+        if (!this.isGameStarted || this.stage !== 'turn' || (this.bettingRoundActive && this.playersToAct.length > 0)) return false;
         this.communityCards.push(...this.deck.deal(1));
         this.stage = 'river';
         this.startBettingRound();
@@ -168,23 +153,21 @@ export default class Table {
         if (!this.bettingRoundActive) return false;
 
         const player = this.players[this.currentTurnIndex];
-        if (player.userId !== playerId) return false;
-        if (!player.isActive || player.chips <= 0) return false;
+        if (player.userId !== playerId || !player.isActive || player.chips <= 0) return false;
 
         switch (action) {
             case "fold":
                 player.isActive = false;
                 break;
-
-            case "call":
+            case "call": {
                 const toCall = this.lastBetAmount - player.currentBet;
                 const callAmount = Math.min(toCall, player.chips);
                 player.chips -= callAmount;
                 player.currentBet += callAmount;
                 this.pot += callAmount;
                 break;
-
-            case "raise":
+            }
+            case "raise": {
                 if (amount < this.minimumBet) return false;
                 const raiseTotal = (this.lastBetAmount - player.currentBet) + amount;
                 if (raiseTotal > player.chips) return false;
@@ -193,22 +176,18 @@ export default class Table {
                 this.pot += raiseTotal;
                 this.lastBetAmount = player.currentBet;
 
-                // Other players need to act again
                 this.playersToAct = this.players.filter(p => p.isActive && p.userId !== player.userId && p.currentBet < this.lastBetAmount);
                 break;
+            }
         }
 
-        // Remove current player from queue
         this.playersToAct = this.playersToAct.filter(p => p.userId !== player.userId);
 
-        // Advance turn or end betting round
         if (this.playersToAct.length > 0) {
-            const nextPlayer = this.playersToAct[0];
-            this.currentTurnIndex = this.players.findIndex(p => p.userId === nextPlayer.userId);
+            this.currentTurnIndex = this.players.findIndex(p => p.userId === this.playersToAct[0].userId);
         } else {
-            // Betting round complete
             this.bettingRoundActive = false;
-            this.players.forEach(p => p.currentBet = 0); // reset for next stage
+            this.players.forEach(p => p.currentBet = 0);
         }
 
         return true;
@@ -231,7 +210,6 @@ export default class Table {
             }
         });
 
-        // Award pot
         if (winners.length > 0) {
             const share = Math.floor(this.pot / winners.length);
             winners.forEach(w => w.player.chips += share);
@@ -239,7 +217,6 @@ export default class Table {
 
         this.pot = 0;
         this.players.forEach(p => p.currentBet = 0);
-
         this.stage = 'showdown';
         this.bettingRoundActive = false;
 
