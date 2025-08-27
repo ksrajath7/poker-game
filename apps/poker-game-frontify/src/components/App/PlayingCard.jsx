@@ -28,7 +28,7 @@ export default function PlayingCard({ rank, suit }) {
     }, []);
 
     return (
-        <div className="w-20 h-28">
+        <div className="w-20 h-28 select-none">
             <div
                 className={`relative w-full h-full transition-transform duration-700 ease-in-out [transform-style:preserve-3d] ${flipped ? '[transform:rotateY(180deg)]' : ''
                     }`}

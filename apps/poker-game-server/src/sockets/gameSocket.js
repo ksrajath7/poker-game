@@ -91,30 +91,19 @@ export default (io) => {
             const table = tableManager.getTable(tableId);
             if (!table) return io.to(socket.id).emit('error', { message: 'Table not found' });
 
-            // ✅ Only table owner can start
-            if (table.ownerId !== userId) {
-                return io.to(socket.id).emit('error', { message: 'Only the table owner can start the game' });
-            }
+            // Optional: only allow table owner or first player to restart
+            table.startGame();
 
-            // Start the game
-            const success = table.startGame(userId); // pass userId to ensure owner check
-            if (!success) return io.to(socket.id).emit('error', { message: 'Failed to start the game' });
-
-            // Send private hands to each player
             table.players.forEach(p => {
                 io.to(p.socketId).emit('yourHand', { hand: p.hand });
             });
 
-            // Notify everyone the game has started
             io.in(tableId).emit('gameStarted', { startedBy: userId, stage: table.stage });
-
-            // Notify whose turn it is
             const currentPlayer = table.getCurrentPlayer();
             io.in(tableId).emit('playerTurn', { userId: currentPlayer.userId });
 
             syncTableToAll(table);
         });
-
 
 
         socket.on('bet', ({ tableId, userId, amount, action }) => {

@@ -7,7 +7,7 @@ function HomePage() {
     const { joinedTableId } = useParams();
     const navigate = useNavigate()
     const [players, setPlayers] = useState([]);
-    const [username, setUsername] = useState('');
+    const [username, setUsername] = useState(_retrieveData('username', 'string') || '');
     const [tableId, setTableId] = useState('');
     const [error, setError] = useState('');
     const [isJoining, setIsJoining] = useState(false);
@@ -47,6 +47,7 @@ function HomePage() {
         setError('');
         const userId = _retrieveData('userId', 'string') || generateNewId();
         _storeData('userId', userId, 'string');
+        _storeData('username', username, 'string');
 
         if (tableId.trim()) {
             setIsJoining(true);
@@ -59,6 +60,7 @@ function HomePage() {
         setError('');
         const userId = _retrieveData('userId', 'string') || generateNewId();
         _storeData('userId', userId, 'string');
+        _storeData('username', username, 'string');
 
         if (userId.trim()) {
             setIsCreatingTable(true);

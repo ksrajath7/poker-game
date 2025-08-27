@@ -23,7 +23,7 @@ export default class Table {
     rankValue = r => this.rankOrder.indexOf(r);
 
     // ---------------- Player Management ----------------
-    addPlayer({ socketId, userId, username }) {
+    addPlayer({ socketId, userId, username = 'Anonymous' }) {
         if (!this.players.some(p => p.userId === userId)) {
             this.players.push({
                 socketId,
@@ -34,12 +34,8 @@ export default class Table {
                 currentBet: 0,
                 isActive: true
             });
-
-            // Set table owner if first player
-            if (!this.ownerId) this.ownerId = userId;
         }
     }
-
 
     removePlayer(userId) {
         const index = this.players.findIndex(p => p.userId === userId);
@@ -83,9 +79,7 @@ export default class Table {
     }
 
     // ---------------- Game Management ----------------
-    startGame(userId) {
-        if (this.ownerId !== userId) return false; // only owner can start
-
+    startGame() {
         // Reset deck & community
         this.deck.resetDeck();
         this.communityCards = [];
@@ -106,7 +100,6 @@ export default class Table {
 
         // Start first betting round
         this.startBettingRound();
-        return true;
     }
 
     startBettingRound() {
@@ -138,6 +131,7 @@ export default class Table {
 
     // ---------------- Dealing ----------------
     dealFlop() {
+        if (!this.isGameStarted) return false; // ✅ check game started
         if (this.stage !== 'preflop') return false;
         if (this.bettingRoundActive && this.playersToAct.length > 0) return false;
 
@@ -148,6 +142,7 @@ export default class Table {
     }
 
     dealTurn() {
+        if (!this.isGameStarted) return false; // ✅ check game started
         if (this.stage !== 'flop') return false;
         if (this.bettingRoundActive && this.playersToAct.length > 0) return false;
 
@@ -158,6 +153,7 @@ export default class Table {
     }
 
     dealRiver() {
+        if (!this.isGameStarted) return false; // ✅ check game started
         if (this.stage !== 'turn') return false;
         if (this.bettingRoundActive && this.playersToAct.length > 0) return false;
 
