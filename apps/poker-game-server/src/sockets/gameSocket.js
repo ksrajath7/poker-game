@@ -34,7 +34,6 @@ export default (io) => {
             io.in(tableId).emit('playerJoined', { userId, players: table.getDetails().players });
             io.to(socket.id).emit('joinedTable', { tableId, table: table.getDetails(userId) });
             // If they are waiting, explicitly notify them
-            console.log("PLAYER JOINED IN BETWEEN", player)
             if (player.isWaiting) {
                 io.to(socket.id).emit('waitingForNextHand', { message: 'You have joined and will enter on the next hand.' });
             }
@@ -65,6 +64,7 @@ export default (io) => {
             const table = tableManager.getTable(tableId);
             if (!table) return;
             const success = table.placeBet(userId, amount, action);
+            //success will be getting from placeBet,
             if (success === true || success === false) {
                 io.in(tableId).emit('betPlaced', {
                     userId,
@@ -81,6 +81,7 @@ export default (io) => {
                     io.in(tableId).emit('bettingRoundComplete', { stage: table.stage });
                 }
             }
+            //success will be getting from showdown, if any player perform fold, in that case, immediately announce the winner,
             else {
                 io.in(tableId).emit('winner', success);
             }

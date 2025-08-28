@@ -294,21 +294,6 @@ export default class Table {
         return { winners, communityCards: this.communityCards, pot: potAmount };
     }
 
-    resetAfterHand() {
-        this.pot = 0;
-        this.players.forEach(p => {
-            p.currentBet = 0;
-            if (!p.isWaiting) {
-                p.isActive = true;
-                p.isAllIn = false;
-            }
-        });
-        this.stage = 'showdown';
-        this.bettingRoundActive = false;
-        this.isGameStarted = false;
-        this.isAllInMode = false;
-    }
-
     // ---------------- Hand Evaluation Helpers ----------------
     evaluateHand(cards) {
         const combinations = this.get5CardCombinations(cards);
@@ -325,6 +310,22 @@ export default class Table {
         });
 
         return best;
+    }
+
+
+    resetAfterHand() {
+        this.pot = 0;
+        this.players.forEach(p => {
+            p.currentBet = 0;
+            if (!p.isWaiting) {
+                p.isActive = true;
+                p.isAllIn = false;
+            }
+        });
+        this.stage = 'showdown';
+        this.bettingRoundActive = false;
+        this.isGameStarted = false;
+        this.isAllInMode = false;
     }
 
     evaluate5CardHand(cards) {
