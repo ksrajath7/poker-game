@@ -23,8 +23,14 @@ export default class Table {
         this.isAllInMode = false; // NEW: track global all-in state
     }
 
+    rankValue = r => {
+        if (typeof r === 'number') return r; // already numeric index
+        if (!r && r !== 0) return -1;
+        const s = String(r).toUpperCase();
+        const normalized = (s === '10') ? 'T' : s; // accept "10" & "T"
+        return this.rankOrder.indexOf(normalized);
+    };
 
-    rankValue = r => this.rankOrder.indexOf(r);
 
     // ---------------- Player Management ----------------
     addPlayer({ socketId, userId, username = 'Anonymous' }) {
@@ -327,61 +333,90 @@ export default class Table {
         return best;
     }
 
+    // Deterministic 5-card evaluator returning {rank, name, tiebreaker}
+    // rank: 9 StraighFlush, 8 Four, 7 FullHouse, 6 Flush, 5 Straight, 4 Trips, 3 TwoPair, 2 Pair, 1 HighCard
     evaluate5CardHand(cards) {
+        // cards: array of 5 card objects { rank, suit }
+        // map to numeric values (0..12) where 12 = Ace
         const values = cards.map(c => this.rankValue(c.rank)).sort((a, b) => b - a);
         const suits = cards.map(c => c.suit);
 
-        const counts = this.countRanks(values);
-        const sortedByFreq = this.sortByFrequency(counts);
+        // build counts map value -> count
+        const counts = this.countRanks(values); // keys are numbers (as strings) but handled below
+
+        // helper lists (numeric)
+        const distinctValues = Object.keys(counts).map(k => parseInt(k, 10)).sort((a, b) => b - a);
+        const freqToValues = {}; // count -> array of values
+        Object.entries(counts).forEach(([val, cnt]) => {
+            if (!freqToValues[cnt]) freqToValues[cnt] = [];
+            freqToValues[cnt].push(parseInt(val, 10));
+        });
+        Object.values(freqToValues).forEach(arr => arr.sort((a, b) => b - a)); // sort each freq group descending
 
         const isFlush = new Set(suits).size === 1;
-        const straightHigh = this.getStraightHigh(values);
+        const straightHigh = this.getStraightHigh(values); // returns highest value index or null
 
-        // Straight Flush
+        // Straight Flush (including Royal)
         if (isFlush && straightHigh !== null) {
             return { rank: 9, name: "Straight Flush", tiebreaker: [straightHigh] };
         }
 
         // Four of a Kind
-        const four = sortedByFreq.find(v => counts[v] === 4);
-        if (four !== undefined) {
-            const kicker = sortedByFreq.find(v => v !== four);
+        if (freqToValues[4] && freqToValues[4].length > 0) {
+            const four = freqToValues[4][0];
+            const kicker = distinctValues.find(v => v !== four);
             return { rank: 8, name: "Four of a Kind", tiebreaker: [four, kicker] };
         }
 
-        // Full House
-        const threeVals = sortedByFreq.filter(v => counts[v] === 3);
-        const pairVals = sortedByFreq.filter(v => counts[v] === 2);
-        if (threeVals.length && (pairVals.length || threeVals.length > 1)) {
-            const three = threeVals[0];
-            const pair = pairVals[0] || threeVals[1];
+        // Full House (three + pair OR two threes -> use highest three as three, next as pair)
+        if ((freqToValues[3] && freqToValues[3].length > 0) && ((freqToValues[2] && freqToValues[2].length > 0) || (freqToValues[3] && freqToValues[3].length > 1))) {
+            const three = freqToValues[3][0];
+            // pair could be a dedicated pair or the second three (in case of two triplets)
+            const pair = (freqToValues[2] && freqToValues[2].length > 0)
+                ? freqToValues[2][0]
+                : freqToValues[3][1];
             return { rank: 7, name: "Full House", tiebreaker: [three, pair] };
         }
 
         // Flush
-        if (isFlush) return { rank: 6, name: "Flush", tiebreaker: values };
+        if (isFlush) {
+            // tiebreaker is values sorted desc (already values)
+            return { rank: 6, name: "Flush", tiebreaker: values };
+        }
 
         // Straight
-        if (straightHigh !== null) return { rank: 5, name: "Straight", tiebreaker: [straightHigh] };
+        if (straightHigh !== null) {
+            return { rank: 5, name: "Straight", tiebreaker: [straightHigh] };
+        }
 
         // Three of a Kind
-        if (threeVals.length) {
-            return { rank: 4, name: "Three of a Kind", tiebreaker: [threeVals[0], ...sortedByFreq.filter(v => v !== threeVals[0]).slice(0, 2)] };
+        if (freqToValues[3] && freqToValues[3].length > 0) {
+            const three = freqToValues[3][0];
+            // kickers: highest remaining values (distinct order preserved by values array)
+            const kickers = values.filter(v => v !== three).slice(0, 2);
+            return { rank: 4, name: "Three of a Kind", tiebreaker: [three, ...kickers] };
         }
 
         // Two Pair
-        if (pairVals.length >= 2) {
-            return { rank: 3, name: "Two Pair", tiebreaker: [pairVals[0], pairVals[1], ...sortedByFreq.filter(v => ![pairVals[0], pairVals[1]].includes(v)).slice(0, 1)] };
+        if (freqToValues[2] && freqToValues[2].length >= 2) {
+            const highPair = freqToValues[2][0];
+            const lowPair = freqToValues[2][1];
+            const kicker = distinctValues.find(v => v !== highPair && v !== lowPair);
+            return { rank: 3, name: "Two Pair", tiebreaker: [highPair, lowPair, kicker] };
         }
 
         // One Pair
-        if (pairVals.length === 1) {
-            return { rank: 2, name: "One Pair", tiebreaker: [pairVals[0], ...sortedByFreq.filter(v => v !== pairVals[0]).slice(0, 3)] };
+        if (freqToValues[2] && freqToValues[2].length === 1) {
+            const pair = freqToValues[2][0];
+            const kickers = values.filter(v => v !== pair).slice(0, 3);
+            return { rank: 2, name: "One Pair", tiebreaker: [pair, ...kickers] };
         }
 
+        // High Card
         return { rank: 1, name: "High Card", tiebreaker: values };
     }
 
+    // Generate all 5-card combinations from cards array (unchanged logic)
     get5CardCombinations(cards) {
         const results = [];
         const choose = (arr, m, start = 0, chosen = []) => {
@@ -399,17 +434,24 @@ export default class Table {
         return results;
     }
 
+    // Compare tiebreaker arrays: return 1 if a>b, -1 if a<b, 0 if equal
     compareTiebreakers(a, b) {
         for (let i = 0; i < Math.max(a.length, b.length); i++) {
-            if ((a[i] || 0) > (b[i] || 0)) return 1;
-            if ((a[i] || 0) < (b[i] || 0)) return -1;
+            const av = (a[i] !== undefined) ? a[i] : -1;
+            const bv = (b[i] !== undefined) ? b[i] : -1;
+            if (av > bv) return 1;
+            if (av < bv) return -1;
         }
         return 0;
     }
 
+    // countRanks: accepts numeric values array, returns map value->count (keys kept as numbers via object)
     countRanks(values) {
         const counts = {};
-        values.forEach(v => counts[v] = (counts[v] || 0) + 1);
+        values.forEach(v => {
+            const k = String(v);
+            counts[k] = (counts[k] || 0) + 1;
+        });
         return counts;
     }
 
@@ -419,9 +461,12 @@ export default class Table {
             .map(([v]) => parseInt(v));
     }
 
+
+    // getStraightHigh: unchanged but robust for ace-low; expects numeric value array sorted desc
     getStraightHigh(values) {
         const unique = [...new Set(values)];
-        if (unique.includes(12)) unique.push(-1); // Ace low
+        // Ace-low handling: if Ace (12) exists, append -1 so sequence detection finds 3..0..-1 slice
+        if (unique.includes(12)) unique.push(-1);
         unique.sort((a, b) => b - a);
         for (let i = 0; i <= unique.length - 5; i++) {
             const seq = unique.slice(i, i + 5);
