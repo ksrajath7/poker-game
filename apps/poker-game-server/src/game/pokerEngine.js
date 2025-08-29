@@ -341,7 +341,6 @@ export default class PokerEngine {
 
         // check if all betting done due to all-in
         if (this.players.filter(p => p.isActive && !p.isAllIn).length <= 1) {
-            console.log("SETTING ALL IN MODE TO TRUE")
             this.isAllInMode = true;
             this.bettingRoundActive = false;
         }
