@@ -13,7 +13,7 @@ export default (io) => {
             const tableId = Math.floor(100000 + Math.random() * 900000);
             if (tableManager.getTable(tableId)) return io.to(socket.id).emit('tableExists', { tableId });
 
-            tableManager.createTable(tableId);
+            tableManager.createTable(tableId, userId);
             const table = tableManager.getTable(tableId);
             table.addPlayer({ socketId: socket.id, userId, username });
 

@@ -5,8 +5,8 @@ class TableManager {
         this.tables = {};
     }
 
-    createTable(tableId) {
-        this.tables[tableId] = new PokerEngine();
+    createTable(tableId, ownerId) {
+        this.tables[tableId] = new PokerEngine(ownerId);
     }
 
     getTable(tableId) {

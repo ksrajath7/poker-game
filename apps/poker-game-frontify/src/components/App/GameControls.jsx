@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 export default function GameControls({
+    tableOwnerId,
     handleStartGame,
     isGameStarted,
     currentTurn,
@@ -31,7 +32,7 @@ export default function GameControls({
     return (
         <div className="absolute bottom-6 flex flex-col items-center gap-4 z-10 w-full px-4">
             {/* Start / Restart Game */}
-            {(!isGameStarted || stage === "showdown") ? (
+            {(tableOwnerId === userId && (!isGameStarted || stage === "showdown")) ? (
                 <button
                     onClick={handleStartGame}
                     className="px-6 py-3 rounded-full bg-green-600 text-white font-semibold hover:bg-green-700 transition w-64"
@@ -67,7 +68,7 @@ export default function GameControls({
             )}
 
             {/* Stage Progression Controls */}
-            {!isMyTurn && isGameStarted && (
+            {(tableOwnerId === userId && isGameStarted) && (
                 <div className="flex flex-wrap justify-center gap-3">
                     {["preflop", "flop", "turn", "river"].includes(stage) && !bettingRoundActive && (
                         <button

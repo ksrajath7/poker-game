@@ -29,6 +29,7 @@ function GamePage() {
     const [currentTurn, setCurrentTurn] = useState(null);
     const [stage, setStage] = useState("preflop");
     const [bettingRoundActive, setBettingRoundActive] = useState(false);
+    const [tableOwnerId, setTableOwnerId] = useState('');
 
     const userId = _retrieveData("userId", "string");
     const username = _retrieveData("username", "string");
@@ -45,6 +46,7 @@ function GamePage() {
         socket.emit("joinTable", { tableId: joinedTableId, userId, username });
 
         socket.on("joinedTable", ({ table }) => {
+            setTableOwnerId(table.ownerId)
             if (table?.currentPlayer) {
                 setCurrentTurn(table.currentPlayer.userId)
             }
@@ -61,7 +63,8 @@ function GamePage() {
             setError("")
         });
 
-        socket.on("tableDetails", ({ players, communityCards, pot, currentBet, isGameStarted, stage, bettingRoundActive, betHistory, currentPlayer }) => {
+        socket.on("tableDetails", ({ players, ownerId, communityCards, pot, currentBet, isGameStarted, stage, bettingRoundActive, betHistory, currentPlayer }) => {
+            setTableOwnerId(ownerId)
             if (currentPlayer) {
                 setCurrentTurn(currentPlayer.userId)
             }
@@ -206,7 +209,7 @@ function GamePage() {
             <PokerTable communityCards={communityCards} currentBet={currentBet} currentTurn={currentTurn} hand={hand} players={[...players,]} pot={pot} userId={userId} winners={winners} />
 
             {/* Game Controls */}
-            <GameControls betAmount={betAmount} bettingRoundActive={bettingRoundActive} currentBet={currentBet} currentTurn={currentTurn}
+            <GameControls tableOwnerId={tableOwnerId} betAmount={betAmount} bettingRoundActive={bettingRoundActive} currentBet={currentBet} currentTurn={currentTurn}
                 handleCall={handleCall} handleFold={handleFold} handleNextStage={handleNextStage} handleRaise={handleRaise} handleShowdown={handleShowdown}
                 handleStartGame={handleStartGame} isGameStarted={isGameStarted} setBetAmount={setBetAmount} stage={stage} userId={userId} />
 

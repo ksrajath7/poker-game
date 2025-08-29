@@ -39,19 +39,7 @@ export default function Player({ myUserId, x, y, chipX, chipY, currentTurn, play
                 </div>
             )} */}
 
-            {player.roundTotalBet > 0 && (
-                <div
-                    className="absolute"
-                    style={{
-                        transform: `translate(${chipX}px, ${chipY}px)`, // slight offset
-                        zIndex: 1,
-                    }}
-                >
-                    <div className="bg-yellow-300 text-black text-xs font-bold px-2 py-0.5 rounded-full shadow-md ring-1 ring-white border border-yellow-500 rotate-[-5deg] animate-chip">
-                        ₵{player.roundTotalBet}
-                    </div>
-                </div>
-            )}
+
 
             {/* Player info block */}
             <div
@@ -63,6 +51,19 @@ export default function Player({ myUserId, x, y, chipX, chipY, currentTurn, play
     `}
                 style={{ minWidth: "100px", zIndex: 10 }}
             >
+                {player.roundTotalBet > 0 && (
+                    <div
+                        className="absolute -top-4 -right-2"
+                        style={{
+
+                            zIndex: 1,
+                        }}
+                    >
+                        <div className="bg-yellow-300 text-black text-xs font-bold px-2 py-0.5 rounded-full shadow-md ring-1 ring-white border border-yellow-500 rotate-[-5deg] animate-chip">
+                            ₵{player.roundTotalBet}
+                        </div>
+                    </div>
+                )}
                 <p className="font-semibold text-white text-sm">
                     {player.username}
 

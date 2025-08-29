@@ -1,7 +1,8 @@
 import DeckService from './deckService.js';
 
-export default class Table {
-    constructor() {
+export default class PokerEngine {
+    constructor(ownerId) {
+        this.ownerId = ownerId;
         this.players = [];
         this.communityCards = [];
         this.deck = new DeckService();
@@ -95,6 +96,7 @@ export default class Table {
                     ? p.hand
                     : (p.hand.length ? ['Hidden', 'Hidden'] : []),
             })),
+            ownerId: this.ownerId,
             communityCards: this.communityCards,
             pot: this.pot,
             currentBet: this.lastBetAmount,
