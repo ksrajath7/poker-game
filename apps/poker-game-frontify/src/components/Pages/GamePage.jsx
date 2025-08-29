@@ -15,6 +15,15 @@ function GamePage() {
     const navigate = useNavigate();
 
     const [showWinnerPopup, setShowWinnerPopup] = useState(false);
+    const [showChipRequests, setShowChipRequests] = useState(false);
+    const [showChipRequestPopup, setShowChipRequestPopup] = useState(false);
+    const [pendingChipRequests, setPendingChipRequests] = useState([]);
+    const [requestAmount, setRequestAmount] = useState(0);
+    const [borrowerId, setBorrowerId] = useState('');
+    const [lenderId, setLenderId] = useState('');
+
+    const [debtsOwed, setDebtsOwed] = useState([]); // debts the user owes
+    const [debtsLent, setDebtsLent] = useState([]); // debts others owe the user
 
     const [players, setPlayers] = useState([]);
     const [betHistory, setBetHistory] = useState([]);
@@ -46,7 +55,6 @@ function GamePage() {
         socket.emit("joinTable", { tableId: joinedTableId, userId, username });
 
         socket.on("joinedTable", ({ table }) => {
-            console.log("joinedTable")
             setTableOwnerId(table.ownerId)
             if (table?.currentPlayer) {
                 setCurrentTurn(table.currentPlayer.userId)
@@ -65,7 +73,6 @@ function GamePage() {
         });
 
         socket.on("tableDetails", ({ players, ownerId, communityCards, pot, currentBet, isGameStarted, stage, bettingRoundActive, betHistory, currentPlayer }) => {
-            console.log("tableDetails")
             setTableOwnerId(ownerId)
             if (currentPlayer) {
                 setCurrentTurn(currentPlayer.userId)
@@ -95,6 +102,40 @@ function GamePage() {
             } else {
                 setError("");
             }
+        });
+
+        socket.on("debtUpdated", ({ borrowerId, lenderId, debts, borrowerChips, lenderChips }) => {
+            // Update debts state if current user is involved
+            if (borrowerId === userId) setDebtsOwed(debts);
+            if (lenderId === userId) setDebtsLent(debts);
+
+            // Update chips for players in UI
+            setPlayers(prev =>
+                prev.map(p => {
+                    if (p.userId === borrowerId) return { ...p, chips: borrowerChips };
+                    if (p.userId === lenderId) return { ...p, chips: lenderChips };
+                    return p;
+                })
+            );
+        });
+
+        socket.on("debtSettled", ({ borrowerId, lenderId, amount, interest }) => {
+            // Remove settled debts from state
+            if (borrowerId === userId) {
+                setDebtsOwed(prev => prev.filter(d => d.lenderId !== lenderId));
+            }
+            if (lenderId === userId) {
+                setDebtsLent(prev => prev.filter(d => d.borrowerId !== borrowerId));
+            }
+
+            // Update chips for players
+            setPlayers(prev =>
+                prev.map(p => {
+                    if (p.userId === borrowerId) return { ...p, chips: p.chips - (amount + interest) };
+                    if (p.userId === lenderId) return { ...p, chips: p.chips + (amount + interest) };
+                    return p;
+                })
+            );
         });
 
 
@@ -158,6 +199,9 @@ function GamePage() {
             socket.off("removedFromTable");
             socket.off("error");
             socket.io.off("reconnect");
+            socket.io.off("debtUpdated");
+            socket.io.off("debtSettled");
+            socket.io.off("reconnect");
             socket.off("waitingForNextHand");
         };
     }, [joinedTableId, userId, username, navigate]);
@@ -190,7 +234,19 @@ function GamePage() {
     const handleNextStage = () => socket.emit("nextStage", { tableId: joinedTableId });
     const handleShowdown = () => socket.emit("showdown", { tableId: joinedTableId });
     const handleExitGame = () => socket.emit("exitGame", { tableId: joinedTableId, userId });
+    const handleRequestChips = () => {
+        socket.emit("requestChips", { tableId: joinedTableId, borrowerId, lenderId, amount: requestAmount })
+        setRequestAmount(0);
+        setBorrowerId('');
+        setLenderId('');
+        setShowChipRequestPopup(false)
+    };
 
+    const onClickChipRequest = (borrowerId, lenderId) => {
+        setBorrowerId(borrowerId);
+        setLenderId(lenderId);
+        setShowChipRequestPopup(true)
+    }
 
     // -------------------------------
     // UI
@@ -208,13 +264,73 @@ function GamePage() {
             <button onClick={handleExitGame} className="absolute top-4 right-4 z-50 px-4 py-2 rounded bg-gray-800 text-white hover:bg-gray-900 transition">🚪 Exit</button>
 
             {/* Poker Table */}
-            <PokerTable communityCards={communityCards} currentBet={currentBet} currentTurn={currentTurn} hand={hand} players={[...players,]} pot={pot} userId={userId} winners={winners} />
+            <PokerTable handleRequestChips={onClickChipRequest}
+                pendingChipRequests={pendingChipRequests} setPendingChipRequests={setPendingChipRequests}
+                showChipRequests={showChipRequests} setShowChipRequests={setShowChipRequests}
+                communityCards={communityCards} currentBet={currentBet} currentTurn={currentTurn}
+                hand={hand} players={[...players,]} pot={pot} userId={userId} winners={winners} />
 
             {/* Game Controls */}
             <GameControls tableOwnerId={tableOwnerId} betAmount={betAmount} bettingRoundActive={bettingRoundActive} currentBet={currentBet} currentTurn={currentTurn}
                 handleCall={handleCall} handleFold={handleFold} handleNextStage={handleNextStage} handleRaise={handleRaise} handleShowdown={handleShowdown}
                 handleStartGame={handleStartGame} isGameStarted={isGameStarted} setBetAmount={setBetAmount} stage={stage} userId={userId} />
 
+
+
+            {showChipRequests && (
+                <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50">
+                    <div className="bg-white text-black rounded-2xl shadow-2xl p-8 max-w-lg w-full text-center relative">
+                        <h2 className="text-lg font-semibold mb-4">Chip Requests</h2>
+
+                        <div className="flex gap-2 flex-col">
+                            {pendingChipRequests.map(request => (
+                                <div key={request.borrowerId}>
+                                    <p className="m-0">{request.borrowerName} has requested {request.amount} on {new Date(request.timestamp).toLocaleString()}</p>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="flex justify-center gap-4 mt-3">
+
+                            <button
+                                onClick={() => setShowChipRequests(false)}
+                                className="px-4 py-2 rounded bg-gray-400 text-white hover:bg-gray-500 transition w-1/2"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showChipRequestPopup && (
+                <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50">
+                    <div className="bg-white text-black rounded-2xl shadow-2xl p-8 max-w-lg w-full text-center relative">
+                        <h2 className="text-lg font-semibold mb-4">Request Chips</h2>
+                        <input
+                            type="number"
+                            value={requestAmount}
+                            onChange={(e) => setRequestAmount(parseInt(e.target.value))}
+                            placeholder={`Min ${currentBet}`}
+                            className="px-3 py-2 rounded text-black w-full mb-4 outline-dashed focus:ring-2 focus:ring-green-500"
+                            min={currentBet}
+                        />
+                        <div className="flex justify-center gap-4 mt-3">
+                            <button
+                                onClick={handleRequestChips}
+                                className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700 transition w-1/2"
+                            >
+                                ✅ Confirm
+                            </button>
+                            <button
+                                onClick={() => setShowChipRequestPopup(false)}
+                                className="px-4 py-2 rounded bg-gray-400 text-white hover:bg-gray-500 transition w-1/2"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             <BetHistoryNotifications betHistory={betHistory} />
 
         </div>

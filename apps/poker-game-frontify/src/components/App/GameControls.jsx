@@ -96,10 +96,10 @@ export default function GameControls({
                             value={betAmount}
                             onChange={(e) => setBetAmount(parseInt(e.target.value))}
                             placeholder={`Min ${currentBet}`}
-                            className="px-3 py-2 rounded text-black w-full mb-4 focus:outline-none focus:ring-2 focus:ring-green-500"
+                            className="px-3 py-2 rounded text-black w-full mb-4 outline-dashed focus:ring-2 focus:ring-green-500"
                             min={currentBet}
                         />
-                        <div className="flex justify-between gap-4">
+                        <div className="flex justify-center gap-4 mt-3">
                             <button
                                 onClick={handleRaiseConfirm}
                                 className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700 transition w-1/2"

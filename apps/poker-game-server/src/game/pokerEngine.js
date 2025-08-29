@@ -36,6 +36,7 @@ export default class PokerEngine {
     // ---------------- Player Management ----------------
     addPlayer({ socketId, userId, username = 'Anonymous' }) {
         if (!this.players.some(p => p.userId === userId)) {
+            // Inside addPlayer
             this.players.push({
                 socketId,
                 userId,
@@ -43,11 +44,13 @@ export default class PokerEngine {
                 hand: [],
                 chips: 1000,
                 currentBet: 0,
-                roundTotalBet: 0,   // NEW
-                totalBet: 0,        // NEW
+                roundTotalBet: 0,
+                totalBet: 0,
                 isActive: !this.isGameStarted,
                 isWaiting: this.isGameStarted,
-                isAllIn: false
+                isAllIn: false,
+                debts: [], // NEW: array of { lenderId, amount, interestRate, settled }
+                pendingChipRequests: []
             });
         } else {
             const existing = this.players.find(p => p.userId === userId);
@@ -101,6 +104,8 @@ export default class PokerEngine {
                 hand: (p.userId === forUserId || this.stage === 'showdown')
                     ? p.hand
                     : (p.hand.length ? ['Hidden', 'Hidden'] : []),
+                debts: p.debts,
+                pendingChipRequests: p.pendingChipRequests
             })),
             ownerId: this.ownerId,
             communityCards: this.communityCards,
@@ -191,6 +196,86 @@ export default class PokerEngine {
         return true;
     }
 
+    // Request chips from another player
+    requestChips(borrowerId, lenderId, amount) {
+        const borrower = this.players.find(p => p.userId === borrowerId);
+        const lender = this.players.find(p => p.userId === lenderId);
+
+        if (!borrower || !lender) return { success: false, message: "Player not found" };
+        if (lender.chips < amount) return { success: false, message: "Lender does not have enough chips" };
+
+        const existingIndex = lender.pendingChipRequests.findIndex(req => req.borrowerId === borrowerId);
+        const newRequest = {
+            borrowerName: borrower.username,
+            borrowerId,
+            amount,
+            timestamp: Date.now(),
+            status: "pending"
+        };
+
+        if (existingIndex !== -1) {
+            // Replace the existing request
+            lender.pendingChipRequests[existingIndex] = newRequest;
+        } else {
+            // Add a new request
+            lender.pendingChipRequests.push(newRequest);
+        }
+
+        return true;
+    }
+    // Donate chips to another player
+    donateChips(borrowerId, lenderId, amount, interestRate = 0.1) {
+        const borrower = this.players.find(p => p.userId === borrowerId);
+        const lender = this.players.find(p => p.userId === lenderId);
+
+        if (!borrower || !lender) return { success: false, message: "Player not found" };
+        if (lender.chips < amount) return { success: false, message: "Lender does not have enough chips" };
+
+        // Transfer chips immediately
+        lender.chips -= amount;
+        borrower.chips += amount;
+
+        // Record debt
+        borrower.debts.push({ lenderId, amount, interestRate, settled: false });
+
+        return { success: true, borrowerChips: borrower.chips, lenderChips: lender.chips, debt: borrower.debts };
+    }
+
+    // Settle debts after a win
+    settleDebtsAfterWin(playerId) {
+        const winner = this.players.find(p => p.userId === playerId);
+        if (!winner || !winner.debts) return [];
+
+        const settledDebts = [];
+
+        winner.debts.forEach(debt => {
+            if (!debt.settled) {
+                const lender = this.players.find(p => p.userId === debt.lenderId);
+                if (!lender) return;
+
+                const totalOwed = Math.ceil(debt.amount * (1 + debt.interestRate));
+
+                // Only settle if winner has enough chips
+                if (winner.chips >= totalOwed) {
+                    winner.chips -= totalOwed;
+                    lender.chips += totalOwed;
+                    debt.settled = true;
+
+                    settledDebts.push({
+                        lenderId: debt.lenderId,
+                        borrowerId: winner.userId,
+                        amountOwed: totalOwed,
+                        interestRate: debt.interestRate,
+                        paidAmount: totalOwed
+                    });
+                }
+            }
+        });
+
+        return settledDebts; // could be empty if winner can't pay
+    }
+
+
     // ---------------- Betting ----------------
     placeBet(playerId, amount = 0, action = "call") {
         if (!this.bettingRoundActive) return false;
@@ -280,6 +365,9 @@ export default class PokerEngine {
 
             activePlayers[0].chips += potAmount;
 
+            // NEW: Settle any debts for the winner
+            this.settleDebtsAfterWin(activePlayers[0].userId);
+
             const result = {
                 winners: [{ player: activePlayers[0], handResult, amountWon: potAmount }],
                 communityCards: this.communityCards,
@@ -287,29 +375,29 @@ export default class PokerEngine {
             };
 
             // Reset table state but keep waiting players flagged
-            this.resetAfterHand()
+            this.resetAfterHand();
 
             return result;
         }
 
-        // Multiple players: evaluate best hands
-        let best = null;
+        // Multiple active players: evaluate best hands
+        let bestHand = null;
 
         activePlayers.forEach(player => {
             const allCards = [...player.hand, ...this.communityCards];
             const handResult = this.evaluateHand(allCards);
 
             if (
-                !best ||
-                handResult.rank > best.rank ||
-                (handResult.rank === best.rank &&
-                    this.compareTiebreakers(handResult.tiebreaker, best.tiebreaker) > 0)
+                !bestHand ||
+                handResult.rank > bestHand.rank ||
+                (handResult.rank === bestHand.rank &&
+                    this.compareTiebreakers(handResult.tiebreaker, bestHand.tiebreaker) > 0)
             ) {
-                best = handResult;
+                bestHand = handResult;
                 winners = [{ player, handResult }];
             } else if (
-                handResult.rank === best.rank &&
-                this.compareTiebreakers(handResult.tiebreaker, best.tiebreaker) === 0
+                handResult.rank === bestHand.rank &&
+                this.compareTiebreakers(handResult.tiebreaker, bestHand.tiebreaker) === 0
             ) {
                 winners.push({ player, handResult });
             }
@@ -320,10 +408,13 @@ export default class PokerEngine {
         winners.forEach(w => {
             w.player.chips += share;
             w.amountWon = share;
+
+            // NEW: Settle debts for each winner
+            this.settleDebtsAfterWin(w.player.userId);
         });
 
         // Reset table state but keep waiting players flagged
-        this.resetAfterHand()
+        this.resetAfterHand();
 
         return { winners, communityCards: this.communityCards, pot: potAmount };
     }

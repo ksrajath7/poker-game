@@ -1,7 +1,8 @@
 import Player from "./Player";
 import PlayingCard from "./PlayingCard";
 
-export default function PokerTable({ communityCards, pot, currentBet, currentTurn, userId, players, winners, hand }) {
+export default function PokerTable({ showChipRequests, setShowChipRequests, handleRequestChips, pendingChipRequests, setPendingChipRequests,
+    communityCards, pot, currentBet, currentTurn, userId, players, winners, hand }) {
     // Determine table size based on screen width
     const tableSize = window.innerWidth >= 1024 ? 500 : window.innerWidth >= 768 ? 400 : 300;
     const radius = tableSize / 2 + 50; // spacing outside the table
@@ -67,6 +68,11 @@ export default function PokerTable({ communityCards, pot, currentBet, currentTur
 
                 return (
                     <Player
+                        handleRequestChips={handleRequestChips}
+                        showChipRequests={showChipRequests}
+                        setShowChipRequests={setShowChipRequests}
+                        pendingChipRequests={pendingChipRequests}
+                        setPendingChipRequests={setPendingChipRequests}
                         currentBet={currentBet}
                         myUserId={userId}
                         myHand={hand}

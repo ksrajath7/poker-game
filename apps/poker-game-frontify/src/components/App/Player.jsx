@@ -1,6 +1,8 @@
+import { useState } from "react";
 import PlayingCard from "./PlayingCard";
 
-export default function Player({ myUserId, x, y, chipX, chipY, currentTurn, player, winnerInfo, isWinner, myHand }) {
+export default function Player({ pendingChipRequests, setPendingChipRequests, myUserId, x, y, chipX, chipY, currentTurn, player, winnerInfo, isWinner, myHand, handleRequestChips, showChipRequests, setShowChipRequests }) {
+
     const isMe = player.userId === myUserId;
 
     return (
@@ -82,13 +84,39 @@ export default function Player({ myUserId, x, y, chipX, chipY, currentTurn, play
                         </span>
                     </p>
                 }
-                {isMe && (
-                    <p className="font-semibold text-white text-sm mt-1">
-                        <span className="px-2 py-0.5 text-[10px] bg-blue-600 rounded-full">
-                            Me
-                        </span>
-                    </p>
-                )}
+                {isMe
+                    ? (
+                        <>
+                            <p className="font-semibold text-white text-sm mt-1">
+                                <span className="px-2 py-0.5 text-[10px] bg-blue-600 rounded-full">
+                                    Me
+                                </span>
+                            </p>
+                            <p className="font-semibold text-white text-sm mt-1">
+
+                                {player.pendingChipRequests && player.pendingChipRequests.length > 0 &&
+                                    <span className="px-2 py-0.5 text-[10px] bg-purple-600 rounded-full cursor-pointer" onClick={() => {
+                                        setShowChipRequests(true)
+                                        setPendingChipRequests(player.pendingChipRequests)
+                                    }}>
+                                        Chip requests
+                                    </span>
+                                }
+                            </p>
+                        </>
+
+                    ) :
+                    (
+                        <p className="font-semibold text-white text-sm mt-1 cursor-pointer" onClick={() => {
+                            handleRequestChips(myUserId, player.userId)
+                        }}>
+                            <span className="px-2 py-0.5 text-[10px] bg-blue-600 rounded-full">
+                                Request Chips
+                            </span>
+                        </p>
+                    )
+                }
+
             </div>
         </div>
 

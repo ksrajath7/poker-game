@@ -89,6 +89,35 @@ export default (io) => {
             syncTableToAll(table);
         });
 
+        socket.on('requestChips', ({ tableId, borrowerId, lenderId, amount }) => {
+            const table = tableManager.getTable(tableId);
+            if (!table) return;
+
+            const result = table.requestChips(borrowerId, lenderId, amount);
+
+            syncTableToAll(table);
+        });
+
+        socket.on('donate', ({ tableId, borrowerId, lenderId, amount, interestRate }) => {
+            const table = tableManager.getTable(tableId);
+            if (!table) return;
+
+            const result = table.donateChips(borrowerId, lenderId, amount, interestRate);
+
+            io.in(tableId).emit('debtUpdated', {
+                borrowerId,
+                lenderId,
+                success: result.success,
+                message: result.message,
+                debts: table.getDetails(borrowerId).players.find(p => p.userId === borrowerId).debts,
+                borrowerChips: result.borrowerChips,
+                lenderChips: result.lenderChips
+            });
+
+            syncTableToAll(table);
+        });
+
+
         socket.on('nextStage', ({ tableId }) => {
             const table = tableManager.getTable(tableId);
             if (!table) return;
@@ -122,12 +151,22 @@ export default (io) => {
             const table = tableManager.getTable(tableId);
             if (!table) return;
 
-            const result = table.showdown();
+            const result = table.showdown(); // returns winner info
             io.in(tableId).emit('winner', result);
+
+            // Attempt to settle debts for the winner(s)
+            result.forEach(winner => {
+                const settledDebts = table.settleDebtsAfterWin(winner.userId); // only if full repayment possible
+                settledDebts.forEach(d => {
+                    io.in(tableId).emit('debtSettled', d); // emit each settled debt
+                });
+            });
+
             io.in(tableId).emit('readyForNextHand', { message: 'Hand complete. Start next hand when ready.' });
 
             syncTableToAll(table);
         });
+
 
         socket.on('exitGame', ({ tableId, userId }) => {
             const table = tableManager.getTable(tableId);
