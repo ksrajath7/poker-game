@@ -25,7 +25,9 @@ export default function GameControls({
         setShowRaiseInput(false);
     };
     const handleRaiseCancel = () => setShowRaiseInput(false);
-
+    console.log(isGameStarted, "isGameStarted")
+    console.log(bettingRoundActive, "bettingRoundActive")
+    console.log(isMyTurn, "isMyTurn")
     return (
         <div className="absolute bottom-6 flex flex-col items-center gap-4 z-10 w-full px-4">
             {/* Start / Restart Game */}

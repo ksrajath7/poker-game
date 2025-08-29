@@ -45,7 +45,9 @@ function GamePage() {
         socket.emit("joinTable", { tableId: joinedTableId, userId, username });
 
         socket.on("joinedTable", ({ table }) => {
-            console.log("joinedTable", table.players)
+            if (table?.currentPlayer) {
+                setCurrentTurn(table.currentPlayer.userId)
+            }
             setPlayers(table.players);
             setCommunityCards(table.communityCards);
             setPot(table.pot);
@@ -59,8 +61,10 @@ function GamePage() {
             setError("")
         });
 
-        socket.on("tableDetails", ({ players, communityCards, pot, currentBet, isGameStarted, stage, bettingRoundActive, betHistory }) => {
-            console.log("tableDetails", players)
+        socket.on("tableDetails", ({ players, communityCards, pot, currentBet, isGameStarted, stage, bettingRoundActive, betHistory, currentPlayer }) => {
+            if (currentPlayer) {
+                setCurrentTurn(currentPlayer.userId)
+            }
             setPlayers(players);
             setCommunityCards(communityCards);
             setPot(pot);
@@ -107,7 +111,6 @@ function GamePage() {
         socket.on("bettingRoundComplete", () => { setBettingRoundActive(false); setError("") });
         socket.on("winner", winnerArray => {
             if (winnerArray.winners) {
-                console.log(winnerArray)
                 setWinners(winnerArray.winners);
                 setShowWinnerPopup(true)
             }
@@ -163,13 +166,7 @@ function GamePage() {
     };
 
     const handleRaise = () => {
-
-
         const raiseAmount = betAmount - currentBet;
-
-        console.log(currentBet, "currentBet")
-        console.log(betAmount, "betAmount")
-        console.log(raiseAmount, "raiseAmount")
         if (raiseAmount <= 0) {
             alert(`Your total bet must be greater than the current bet of ₵${currentBet}`);
             return;

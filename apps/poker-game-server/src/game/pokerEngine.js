@@ -103,7 +103,8 @@ export default class Table {
             bettingRoundActive: this.bettingRoundActive,
             stage: this.stage,
             isAllInMode: this.isAllInMode, // NEW
-            betHistory: []
+            betHistory: [],
+            currentPlayer: this.players[this.currentTurnIndex] || null
         };
     }
 
