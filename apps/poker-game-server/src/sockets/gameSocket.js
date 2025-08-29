@@ -104,15 +104,18 @@ export default (io) => {
 
             const result = table.donateChips(borrowerId, lenderId, amount, interestRate);
 
-            io.in(tableId).emit('debtUpdated', {
-                borrowerId,
-                lenderId,
-                success: result.success,
-                message: result.message,
-                debts: table.getDetails(borrowerId).players.find(p => p.userId === borrowerId).debts,
-                borrowerChips: result.borrowerChips,
-                lenderChips: result.lenderChips
-            });
+            if (result) {
+                io.in(tableId).emit('debtUpdated', {
+                    borrowerId,
+                    lenderId,
+                    success: result.success,
+                    message: result.message,
+                    debts: table.getDetails(borrowerId).players.find(p => p.userId === borrowerId).debts,
+                    borrowerChips: result.borrowerChips,
+                    lenderChips: result.lenderChips
+                });
+            }
+
 
             syncTableToAll(table);
         });

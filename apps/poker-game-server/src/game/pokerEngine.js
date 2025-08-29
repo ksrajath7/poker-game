@@ -225,6 +225,7 @@ export default class PokerEngine {
     }
     // Donate chips to another player
     donateChips(borrowerId, lenderId, amount, interestRate = 0.1) {
+        if (this.isGameStarted) return false;
         const borrower = this.players.find(p => p.userId === borrowerId);
         const lender = this.players.find(p => p.userId === lenderId);
 
