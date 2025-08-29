@@ -25,7 +25,7 @@ export default function PokerTable({ stage, showChipRequests, setShowChipRequest
                 }}
             >
                 {/* Community Cards */}
-                <div className="flex flex-col items-center gap-4 z-10">
+                <div className="flex flex-col items-center gap-1 z-10">
                     <div className="flex justify-center gap-2 flex-wrap mb-4">
                         {communityCards.map((c, i) => (
                             <PlayingCard key={i} rank={c.rank} suit={c.suit} />

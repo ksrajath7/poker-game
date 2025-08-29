@@ -322,9 +322,9 @@ export default class PokerEngine {
                 this.lastBetAmount = player.currentBet;
 
                 // reset playersToAct
-                this.playersToAct = this.players.filter(
-                    p => p.isActive && p.userId !== player.userId && p.currentBet < this.lastBetAmount
-                );
+                // this.playersToAct = this.players.filter(
+                //     p => p.isActive && p.userId !== player.userId && p.currentBet < this.lastBetAmount
+                // );
 
                 if (player.chips === 0) player.isAllIn = true;
 
