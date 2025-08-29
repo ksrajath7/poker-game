@@ -3,6 +3,8 @@ import PlayingCard from "./PlayingCard";
 export default function Player({ myUserId, x, y, currentTurn, player, winnerInfo, isWinner, myHand }) {
     const isMe = player.userId === myUserId;
 
+    console.log(player)
+
     return (
         <div
             className="absolute group select-none"
@@ -24,6 +26,13 @@ export default function Player({ myUserId, x, y, currentTurn, player, winnerInfo
                     </div>
                 )}
             </div>
+
+            {/* Bet display above player */}
+            {player.currentBet > 0 && (
+                <div className="absolute -top-14 left-1/2 transform -translate-x-1/2 bg-yellow-400 text-black text-sm font-bold px-3 py-1 rounded-full shadow-lg">
+                    ₵{player.currentBet}
+                </div>
+            )}
 
             {/* Player info block */}
             <div

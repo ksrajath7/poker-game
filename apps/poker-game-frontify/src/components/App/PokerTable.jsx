@@ -32,8 +32,8 @@ export default function PokerTable({ communityCards, pot, currentBet, currentTur
                     </div>
                     <div className="flex flex-col gap-1 mt-2 text-xs text-gray-200">
                         <p>
-                            Pot: <span className="text-green-400 font-bold">${pot}</span> | Current Bet:{" "}
-                            <span className="text-yellow-400 font-bold">${currentBet}</span>
+                            Pot: <span className="text-green-400 font-bold">₵{pot}</span> | Current Bet:{" "}
+                            <span className="text-yellow-400 font-bold">₵{currentBet}</span>
                         </p>
                         {currentTurn && (
                             <p
@@ -61,6 +61,7 @@ export default function PokerTable({ communityCards, pot, currentBet, currentTur
 
                 return (
                     <Player
+                        currentBet={currentBet}
                         myUserId={userId}
                         myHand={hand}
                         key={p.userId}

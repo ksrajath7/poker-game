@@ -233,7 +233,7 @@ export default class Table {
             this.currentTurnIndex = this.players.findIndex(p => p.userId === this.playersToAct[0].userId);
         } else {
             this.bettingRoundActive = false;
-            this.players.forEach(p => p.currentBet = 0);
+            // this.players.forEach(p => p.currentBet = 0);
         }
 
         return true;

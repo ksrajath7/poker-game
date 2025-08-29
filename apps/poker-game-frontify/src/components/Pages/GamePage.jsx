@@ -182,7 +182,7 @@ function GamePage() {
         <div className=" min-h-[100svh] overflow-x-hidden overflow-y-auto bg-gradient-to-br from-gray-900 to-black text-white relative flex items-center justify-center">
 
             {/* Winner Popup */}
-            <WinnerPopup showWinnerPopup={showWinnerPopup} winners={winners} setShowWinnerPopup={setShowWinnerPopup} />
+            <WinnerPopup myUserId={userId} showWinnerPopup={showWinnerPopup} winners={winners} setShowWinnerPopup={setShowWinnerPopup} />
 
             {/* Top-Left Table Invite */}
             <TableCodeAndLink joinedTableId={joinedTableId} />

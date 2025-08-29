@@ -55,6 +55,7 @@ export default (io) => {
                 if (!p.isWaiting) io.to(p.socketId).emit('yourHand', { hand: p.hand });
             });
 
+            io.in(tableId).emit('winner', []);
             io.in(tableId).emit('gameStarted', { stage: table.stage });
             io.in(tableId).emit('playerTurn', { userId: table.getCurrentPlayer()?.userId });
             syncTableToAll(table);

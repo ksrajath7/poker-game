@@ -1,4 +1,5 @@
-export default function WinnerPopup({ showWinnerPopup, setShowWinnerPopup, winners = [] }) {
+export default function WinnerPopup({ myUserId, showWinnerPopup, setShowWinnerPopup, winners = [] }) {
+    console.log(winners)
     if (showWinnerPopup)
         return (
             <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50">
@@ -14,8 +15,13 @@ export default function WinnerPopup({ showWinnerPopup, setShowWinnerPopup, winne
 
                     {winners.map((winner, idx) => (
                         <div key={idx} className="mb-4">
-                            <p className="text-xl font-bold">{winner.player?.username || "Unknown Player"}</p>
-                            <p className="text-lg font-medium">{winner.handName}</p>
+                            {
+                                winner.player?.userId === myUserId ?
+                                    <p className="text-xl font-bold">{"You won"}</p>
+                                    :
+                                    <p className="text-xl font-bold">{winner.player?.username || "Unknown Player"}</p>
+                            }
+                            <p className="text-lg font-medium">{winner.handResult.name}</p>
                             <p className="text-lg font-semibold">Amout Won: {winner.amountWon}</p>
                         </div>
                     ))}
