@@ -59,6 +59,12 @@ export default function PokerTable({ communityCards, pot, currentBet, currentTur
                 const x = radius * Math.cos((angle * Math.PI) / 180);
                 const y = radius * Math.sin((angle * Math.PI) / 180);
 
+                const chipDistance = radius - 350; // closer to center than player
+
+                const chipX = chipDistance * Math.cos((angle * Math.PI) / 180) + 50;
+                const chipY = chipDistance * Math.sin((angle * Math.PI) / 180) + 10;
+
+
                 return (
                     <Player
                         currentBet={currentBet}
@@ -67,6 +73,8 @@ export default function PokerTable({ communityCards, pot, currentBet, currentTur
                         key={p.userId}
                         x={x}
                         y={y}
+                        chipX={chipX}
+                        chipY={chipY}
                         currentTurn={currentTurn}
                         player={p}
                         isWinner={isWinner}

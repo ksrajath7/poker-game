@@ -45,6 +45,7 @@ function GamePage() {
         socket.emit("joinTable", { tableId: joinedTableId, userId, username });
 
         socket.on("joinedTable", ({ table }) => {
+            console.log("joinedTable", table.players)
             setPlayers(table.players);
             setCommunityCards(table.communityCards);
             setPot(table.pot);
@@ -59,6 +60,7 @@ function GamePage() {
         });
 
         socket.on("tableDetails", ({ players, communityCards, pot, currentBet, isGameStarted, stage, bettingRoundActive, betHistory }) => {
+            console.log("tableDetails", players)
             setPlayers(players);
             setCommunityCards(communityCards);
             setPot(pot);

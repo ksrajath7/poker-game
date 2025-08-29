@@ -42,8 +42,11 @@ export default class Table {
                 hand: [],
                 chips: 1000,
                 currentBet: 0,
-                isActive: !this.isGameStarted, // active only if game hasn't started
-                isWaiting: this.isGameStarted   // wait if game already started
+                roundTotalBet: 0,   // NEW
+                totalBet: 0,        // NEW
+                isActive: !this.isGameStarted,
+                isWaiting: this.isGameStarted,
+                isAllIn: false
             });
         } else {
             const existing = this.players.find(p => p.userId === userId);
@@ -84,6 +87,8 @@ export default class Table {
                 username: p.username,
                 chips: p.chips,
                 currentBet: p.currentBet,
+                roundTotalBet: p.roundTotalBet,
+                totalBet: p.totalBet,
                 isActive: p.isActive,
                 isWaiting: p.isWaiting,
                 hand: (p.userId === forUserId || this.stage === 'showdown')
@@ -133,6 +138,7 @@ export default class Table {
         }
         this.bettingRoundActive = true;
         this.players.forEach(p => p.currentBet = 0);
+        this.players.forEach(p => p.roundTotalBet = 0); // reset for new round
         this.playersToAct = this.players.filter(p => p.isActive && p.chips > 0);
         if (this.playersToAct.length > 0) {
             this.currentTurnIndex = this.players.findIndex(p => p.userId === this.playersToAct[0].userId);
@@ -183,6 +189,8 @@ export default class Table {
         const player = this.players[this.currentTurnIndex];
         if (player.userId !== playerId || !player.isActive || player.chips <= 0) return false;
 
+        let betAmount = 0;
+
         switch (action) {
             case "fold":
                 player.isActive = false;
@@ -190,11 +198,12 @@ export default class Table {
 
             case "call": {
                 const toCall = this.lastBetAmount - player.currentBet;
-                if (player.chips < toCall) return false;
-                const callAmount = Math.min(toCall, player.chips);
-                player.chips -= callAmount;
-                player.currentBet += callAmount;
-                this.pot += callAmount;
+                betAmount = Math.min(toCall, player.chips);
+                player.chips -= betAmount;
+                player.currentBet += betAmount;
+                player.roundTotalBet += betAmount;  // track round
+                player.totalBet += betAmount;       // track hand
+                this.pot += betAmount;
 
                 if (player.chips === 0) player.isAllIn = true;
                 break;
@@ -204,11 +213,17 @@ export default class Table {
                 if (amount < this.minimumBet) return false;
                 const raiseTotal = (this.lastBetAmount - player.currentBet) + amount;
                 if (raiseTotal > player.chips) return false;
-                player.chips -= raiseTotal;
-                player.currentBet += raiseTotal;
-                this.pot += raiseTotal;
+
+                betAmount = raiseTotal;
+                player.chips -= betAmount;
+                player.currentBet += betAmount;
+                player.roundTotalBet += betAmount;
+                player.totalBet += betAmount;
+                this.pot += betAmount;
+
                 this.lastBetAmount = player.currentBet;
 
+                // reset playersToAct
                 this.playersToAct = this.players.filter(
                     p => p.isActive && p.userId !== player.userId && p.currentBet < this.lastBetAmount
                 );
@@ -216,14 +231,16 @@ export default class Table {
             }
         }
 
+        // remove current player from playersToAct
         this.playersToAct = this.playersToAct.filter(p => p.userId !== player.userId);
-        // ---------------- Auto-fold detection ----------------
+
+        // auto-fold detection
         const activePlayers = this.players.filter(p => p.isActive);
         if (activePlayers.length === 1) {
             return this.showdown();
         }
 
-        // Check if all betting is done due to all-in
+        // check if all betting done due to all-in
         if (this.players.filter(p => p.isActive && !p.isAllIn).length <= 1) {
             this.isAllInMode = true;
             this.bettingRoundActive = false;
@@ -233,11 +250,13 @@ export default class Table {
             this.currentTurnIndex = this.players.findIndex(p => p.userId === this.playersToAct[0].userId);
         } else {
             this.bettingRoundActive = false;
-            // this.players.forEach(p => p.currentBet = 0);
+            this.players.forEach(p => p.currentBet = 0);
+            // ⚡ roundTotalBet remains visible for UI until startBettingRound()
         }
 
         return true;
     }
+
 
     // ---------------- Showdown ----------------
     showdown() {
@@ -304,6 +323,8 @@ export default class Table {
         this.pot = 0;
         this.players.forEach(p => {
             p.currentBet = 0;
+            p.roundTotalBet = 0;
+            p.totalBet = 0;
             if (!p.isWaiting) {
                 p.isActive = true;
                 p.isAllIn = false;

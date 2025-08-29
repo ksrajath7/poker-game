@@ -1,9 +1,7 @@
 import PlayingCard from "./PlayingCard";
 
-export default function Player({ myUserId, x, y, currentTurn, player, winnerInfo, isWinner, myHand }) {
+export default function Player({ myUserId, x, y, chipX, chipY, currentTurn, player, winnerInfo, isWinner, myHand }) {
     const isMe = player.userId === myUserId;
-
-    console.log(player)
 
     return (
         <div
@@ -27,10 +25,31 @@ export default function Player({ myUserId, x, y, currentTurn, player, winnerInfo
                 )}
             </div>
 
-            {/* Bet display above player */}
-            {player.currentBet > 0 && (
-                <div className="absolute -top-14 left-1/2 transform -translate-x-1/2 bg-yellow-400 text-black text-sm font-bold px-3 py-1 rounded-full shadow-lg">
-                    ₵{player.currentBet}
+            {/* {player.totalBet > 0 && (
+                <div
+                    className="absolute"
+                    style={{
+                        transform: `translate(${chipX}px, ${chipY}px)`,
+                        zIndex: 1,
+                    }}
+                >
+                    <div className="bg-yellow-400 text-black text-sm font-bold px-3 py-1 rounded-full shadow-lg ring-2 ring-white border border-yellow-600 rotate-[5deg] animate-chip">
+                        ₵{player.totalBet}
+                    </div>
+                </div>
+            )} */}
+
+            {player.roundTotalBet > 0 && (
+                <div
+                    className="absolute"
+                    style={{
+                        transform: `translate(${chipX}px, ${chipY}px)`, // slight offset
+                        zIndex: 1,
+                    }}
+                >
+                    <div className="bg-yellow-300 text-black text-xs font-bold px-2 py-0.5 rounded-full shadow-md ring-1 ring-white border border-yellow-500 rotate-[-5deg] animate-chip">
+                        ₵{player.roundTotalBet}
+                    </div>
                 </div>
             )}
 
@@ -40,7 +59,7 @@ export default function Player({ myUserId, x, y, currentTurn, player, winnerInfo
         relative p-2 px-4 rounded-xl text-center shadow-lg transition-all duration-300 box
         ${currentTurn === player.userId ? "ring-4 ring-yellow-400 border-run" : ""}
         ${isWinner ? "border-4 border-green-400" : ""}
-       hover:scale-100 max-w-[150px]
+       hover:scale-100 w-[150px]
     `}
                 style={{ minWidth: "100px", zIndex: 10 }}
             >

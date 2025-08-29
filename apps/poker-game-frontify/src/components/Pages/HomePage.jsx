@@ -6,7 +6,6 @@ import { _retrieveData, _storeData } from "@/lib/local-storage";
 function HomePage() {
     const { joinedTableId } = useParams();
     const navigate = useNavigate()
-    const [players, setPlayers] = useState([]);
     const [username, setUsername] = useState(_retrieveData('username', 'string') || '');
     const [tableId, setTableId] = useState('');
     const [error, setError] = useState('');
