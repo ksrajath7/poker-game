@@ -163,11 +163,24 @@ function GamePage() {
     };
 
     const handleRaise = () => {
-        if (betAmount < currentBet) {
-            alert(`Raise must be at least ${currentBet}`);
+
+
+        const raiseAmount = betAmount - currentBet;
+
+        console.log(currentBet, "currentBet")
+        console.log(betAmount, "betAmount")
+        console.log(raiseAmount, "raiseAmount")
+        if (raiseAmount <= 0) {
+            alert(`Your total bet must be greater than the current bet of ₵${currentBet}`);
             return;
         }
-        socket.emit("bet", { tableId: joinedTableId, userId, amount: betAmount, action: "raise" });
+        socket.emit("bet", {
+            tableId: joinedTableId,
+            userId,
+            amount: raiseAmount, // total bet amount
+            action: "raise"
+        });
+
         setBetAmount(0);
     };
 

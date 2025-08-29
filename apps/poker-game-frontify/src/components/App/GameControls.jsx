@@ -1,28 +1,121 @@
-export default function GameControls({ handleStartGame, isGameStarted, currentTurn, userId, betAmount, setBetAmount, handleCall, handleRaise, handleFold, handleNextStage, stage, bettingRoundActive, handleShowdown, currentBet }) {
+import { useState } from "react";
+
+export default function GameControls({
+    handleStartGame,
+    isGameStarted,
+    currentTurn,
+    userId,
+    betAmount,
+    setBetAmount,
+    handleCall,
+    handleRaise,
+    handleFold,
+    handleNextStage,
+    stage,
+    bettingRoundActive,
+    handleShowdown,
+    currentBet,
+}) {
+    const [showRaiseInput, setShowRaiseInput] = useState(false);
+    const isMyTurn = currentTurn === userId;
+
+    const handleRaiseClick = () => setShowRaiseInput(true);
+    const handleRaiseConfirm = () => {
+        handleRaise();
+        setShowRaiseInput(false);
+    };
+    const handleRaiseCancel = () => setShowRaiseInput(false);
+
     return (
-        <div className="absolute bottom-6 flex flex-wrap justify-center gap-3 z-10">
-            <button disabled={isGameStarted && stage !== "showdown"} onClick={handleStartGame} className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700 transition" >
-                {/* <span>🎲 Start Game</span> */}
-                {isGameStarted ? stage !== "showdown" ? <span>Game in progress</span> : <span>🎲 Re-Start Game</span> : <span>🎲 Start Game</span>}
-            </button>
+        <div className="absolute bottom-6 flex flex-col items-center gap-4 z-10 w-full px-4">
+            {/* Start / Restart Game */}
+            {(!isGameStarted || stage === "showdown") ? (
+                <button
+                    onClick={handleStartGame}
+                    className="px-6 py-3 rounded-full bg-green-600 text-white font-semibold hover:bg-green-700 transition w-64"
+                >
+                    {isGameStarted ? "🎲 Re-Start Game" : "🎲 Start Game"}
+                </button>
+            )
+                : <></>
+            }
 
-            {currentTurn === userId && isGameStarted && bettingRoundActive && (
-                <>
-                    <input type="number" value={betAmount} onChange={e => setBetAmount(parseInt(e.target.value))} placeholder="Raise amount" className="px-3 py-2 rounded text-black bg-white w-32" min={currentBet} />
-                    <button onClick={handleCall} className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition">📞 Call</button>
-                    <button onClick={handleRaise} className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700 transition">⬆️ Raise</button>
-                    <button onClick={handleFold} className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 transition">❌ Fold</button>
-                </>
+            {/* Betting Controls */}
+            {isMyTurn && isGameStarted && bettingRoundActive && (
+                <div className="flex flex-wrap justify-center gap-3 items-center bg-gray-800/80 p-4 rounded-xl shadow-lg relative">
+                    <button
+                        onClick={handleCall}
+                        className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition"
+                    >
+                        📞 Call
+                    </button>
+                    <button
+                        onClick={handleRaiseClick}
+                        className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700 transition"
+                    >
+                        ⬆️ Raise
+                    </button>
+                    <button
+                        onClick={handleFold}
+                        className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 transition"
+                    >
+                        ❌ Fold
+                    </button>
+                </div>
             )}
 
-            {/* Stage-based buttons */}
-            {isGameStarted && currentTurn !== userId && ["preflop", "flop", "turn", "river"].includes(stage) && !bettingRoundActive && (
-                <button onClick={handleNextStage} className="px-4 py-2 rounded bg-yellow-500 text-white hover:bg-yellow-600 transition">🃏 Deal Next Stage</button>
-            )}
-            {currentTurn !== userId && stage === "river" && !bettingRoundActive && (
-                <button onClick={handleShowdown} className="px-4 py-2 rounded bg-purple-600 text-white hover:bg-purple-700 transition">🏁 Showdown</button>
+            {/* Stage Progression Controls */}
+            {!isMyTurn && isGameStarted && (
+                <div className="flex flex-wrap justify-center gap-3">
+                    {["preflop", "flop", "turn", "river"].includes(stage) && !bettingRoundActive && (
+                        <button
+                            onClick={handleNextStage}
+                            className="px-5 py-3 rounded bg-yellow-500 text-white hover:bg-yellow-600 transition shadow-md"
+                        >
+                            🃏 Deal Next Stage
+                        </button>
+                    )}
+                    {stage === "river" && !bettingRoundActive && (
+                        <button
+                            onClick={handleShowdown}
+                            className="px-5 py-3 rounded bg-purple-600 text-white hover:bg-purple-700 transition shadow-md"
+                        >
+                            🏁 Showdown
+                        </button>
+                    )}
+                </div>
             )}
 
+            {/* Full-page Raise Modal */}
+            {showRaiseInput && (
+                <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50">
+                    <div className="bg-white text-black rounded-2xl shadow-2xl p-8 max-w-lg w-full text-center relative">
+                        <h2 className="text-lg font-semibold mb-4">Enter Raise Amount</h2>
+                        <input
+                            type="number"
+                            value={betAmount}
+                            onChange={(e) => setBetAmount(parseInt(e.target.value))}
+                            placeholder={`Min ${currentBet}`}
+                            className="px-3 py-2 rounded text-black w-full mb-4 focus:outline-none focus:ring-2 focus:ring-green-500"
+                            min={currentBet}
+                        />
+                        <div className="flex justify-between gap-4">
+                            <button
+                                onClick={handleRaiseConfirm}
+                                className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700 transition w-1/2"
+                            >
+                                ✅ Confirm
+                            </button>
+                            <button
+                                onClick={handleRaiseCancel}
+                                className="px-4 py-2 rounded bg-gray-400 text-white hover:bg-gray-500 transition w-1/2"
+                            >
+                                ❌ Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
-    )
+    );
 }
