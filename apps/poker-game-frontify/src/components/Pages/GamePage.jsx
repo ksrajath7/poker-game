@@ -21,6 +21,7 @@ function GamePage() {
     const [requestAmount, setRequestAmount] = useState(0);
     const [borrowerId, setBorrowerId] = useState('');
     const [lenderId, setLenderId] = useState('');
+    const [interestRate, setInterestRate] = useState(0);
 
     const [debtsOwed, setDebtsOwed] = useState([]); // debts the user owes
     const [debtsLent, setDebtsLent] = useState([]); // debts others owe the user
@@ -117,6 +118,8 @@ function GamePage() {
                     return p;
                 })
             );
+            const tempPendingChipRequests = pendingChipRequests.filter(req => req.borrowerId !== borrowerId)
+            setPendingChipRequests(tempPendingChipRequests)
         });
 
         socket.on("debtSettled", ({ borrowerId, lenderId, amount, interest }) => {
@@ -234,6 +237,13 @@ function GamePage() {
     const handleNextStage = () => socket.emit("nextStage", { tableId: joinedTableId });
     const handleShowdown = () => socket.emit("showdown", { tableId: joinedTableId });
     const handleExitGame = () => socket.emit("exitGame", { tableId: joinedTableId, userId });
+    const handleDonateChips = (borrowerId, amount) => {
+
+        const intRate = interestRate / 100
+        socket.emit("donate", { tableId: joinedTableId, borrowerId, lenderId: userId, amount, interestRate: intRate })
+        // setInterestRate(0);
+        // setShowChipRequests(false)
+    };
     const handleRequestChips = () => {
         socket.emit("requestChips", { tableId: joinedTableId, borrowerId, lenderId, amount: requestAmount })
         setRequestAmount(0);
@@ -279,15 +289,39 @@ function GamePage() {
 
             {showChipRequests && (
                 <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50">
-                    <div className="bg-white text-black rounded-2xl shadow-2xl p-8 max-w-lg w-full text-center relative">
+                    <div className="bg-white text-black rounded-2xl shadow-2xl p-8 max-w-lg w-full  relative">
                         <h2 className="text-lg font-semibold mb-4">Chip Requests</h2>
-
+                        <p className="mb-2">Interest rate</p>
+                        <input
+                            type="number"
+                            value={interestRate}
+                            onChange={(e) => setInterestRate(parseInt(e.target.value))}
+                            placeholder={`Min ${currentBet}`}
+                            className="px-3 py-2 rounded text-black w-full mb-4 outline-none ring-2 focus:ring-2 focus:ring-green-500"
+                            min={0}
+                            max={100}
+                        />
                         <div className="flex gap-2 flex-col">
-                            {pendingChipRequests.map(request => (
-                                <div key={request.borrowerId}>
-                                    <p className="m-0">{request.borrowerName} has requested {request.amount} on {new Date(request.timestamp).toLocaleString()}</p>
-                                </div>
-                            ))}
+                            {
+                                pendingChipRequests.length > 0 ?
+                                    <>
+                                        {pendingChipRequests.map(request => (
+                                            <div key={request.borrowerId} className="flex flex-row gap-2 justify-between items-start px-3 py-2 bg-orange-50 border border-orange-200 rounded-lg">
+                                                <p className="m-0">{request.borrowerName} has requested {request.amount} on {new Date(request.timestamp).toLocaleString()}
+
+                                                </p>
+                                                <span className="px-2 py-0.5 text-[10px] bg-blue-600 rounded-full font-semibold text-white text-sm cursor-pointer" onClick={() => {
+                                                    handleDonateChips(request.borrowerId, request.amount)
+                                                }}>
+                                                    Approve
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </>
+                                    :
+                                    <p className="text-center">No requests left</p>
+                            }
+
                         </div>
                         <div className="flex justify-center gap-4 mt-3">
 
@@ -311,7 +345,7 @@ function GamePage() {
                             value={requestAmount}
                             onChange={(e) => setRequestAmount(parseInt(e.target.value))}
                             placeholder={`Min ${currentBet}`}
-                            className="px-3 py-2 rounded text-black w-full mb-4 outline-dashed focus:ring-2 focus:ring-green-500"
+                            className="px-3 py-2 rounded text-black w-full mb-4 outline-none ring-2 focus:ring-2 focus:ring-green-500"
                             min={currentBet}
                         />
                         <div className="flex justify-center gap-4 mt-3">

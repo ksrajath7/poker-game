@@ -103,7 +103,7 @@ export default (io) => {
             if (!table) return;
 
             const result = table.donateChips(borrowerId, lenderId, amount, interestRate);
-
+            console.log("donate", result)
             if (result) {
                 io.in(tableId).emit('debtUpdated', {
                     borrowerId,

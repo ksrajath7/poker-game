@@ -1,5 +1,6 @@
 import { useState } from "react";
 import PlayingCard from "./PlayingCard";
+import ChipRequestBadge from "./ChipRequestBadge";
 
 export default function Player({ pendingChipRequests, setPendingChipRequests, myUserId, x, y, chipX, chipY, currentTurn, player, winnerInfo, isWinner, myHand, handleRequestChips, showChipRequests, setShowChipRequests }) {
 
@@ -87,27 +88,20 @@ export default function Player({ pendingChipRequests, setPendingChipRequests, my
                 {isMe
                     ? (
                         <>
-                            <p className="font-semibold text-white text-sm mt-1">
+                            <p className="font-semibold text-white text-sm mt-2">
                                 <span className="px-2 py-0.5 text-[10px] bg-blue-600 rounded-full">
                                     Me
                                 </span>
                             </p>
-                            <p className="font-semibold text-white text-sm mt-1">
-
-                                {player.pendingChipRequests && player.pendingChipRequests.length > 0 &&
-                                    <span className="px-2 py-0.5 text-[10px] bg-purple-600 rounded-full cursor-pointer" onClick={() => {
-                                        setShowChipRequests(true)
-                                        setPendingChipRequests(player.pendingChipRequests)
-                                    }}>
-                                        Chip requests
-                                    </span>
-                                }
-                            </p>
+                            <ChipRequestBadge
+                                setShowChipRequests={setShowChipRequests}
+                                setPendingChipRequests={setPendingChipRequests}
+                                player={player} />
                         </>
 
                     ) :
                     (
-                        <p className="font-semibold text-white text-sm mt-1 cursor-pointer" onClick={() => {
+                        <p className="font-semibold text-white text-sm mt-2 cursor-pointer" onClick={() => {
                             handleRequestChips(myUserId, player.userId)
                         }}>
                             <span className="px-2 py-0.5 text-[10px] bg-blue-600 rounded-full">
