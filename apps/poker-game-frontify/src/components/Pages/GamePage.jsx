@@ -313,7 +313,7 @@ function GamePage() {
                                                 <span className="px-2 py-0.5 text-[10px] bg-blue-600 rounded-full font-semibold text-white text-sm cursor-pointer" onClick={() => {
                                                     handleDonateChips(request.borrowerId, request.amount)
                                                 }}>
-                                                    Approve
+                                                    Donate
                                                 </span>
                                             </div>
                                         ))}
