@@ -8,7 +8,7 @@ const CURRENT_ENV = ENVIRONMENTS.DEVELOPMENT;
 
 const CONFIG = {
     [ENVIRONMENTS.DEVELOPMENT]: {
-        USE_API: "http://localhost:5000/",
+        USE_API: "https://01eb04f640ef.ngrok-free.app/",
         CLIENT_URL: "https://add-boost-360-test.web.app",
         GOOGLE_CLIENT_ID: '',
 

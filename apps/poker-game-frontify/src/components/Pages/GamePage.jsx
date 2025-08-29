@@ -292,16 +292,6 @@ function GamePage() {
                     <div className="bg-white text-black rounded-2xl shadow-2xl p-8 max-w-lg w-full  relative">
                         <h2 className="text-lg font-semibold mb-4">Chip Requests</h2>
                         <p className="mb-2">Interest rate</p>
-                        {/* <input
-                            type="number"
-                            value={interestRate}
-                            onChange={(e) => setInterestRate(parseInt(e.target.value))}
-                            placeholder={`Min ${currentBet}`}
-                            className="px-3 py-2 rounded text-black w-full mb-4 outline-none ring-2 focus:ring-2 focus:ring-green-500"
-                            min={0}
-                            max={100}
-                        /> */}
-
                         <div className="flex flex-wrap gap-2 mb-4">
                             {Array.from({ length: 11 }, (_, i) => (i) * 10).map((value) => (
                                 <span
@@ -353,6 +343,7 @@ function GamePage() {
                     <div className="bg-white text-black rounded-2xl shadow-2xl p-8 max-w-lg w-full text-center relative">
                         <h2 className="text-lg font-semibold mb-4">Request Chips</h2>
                         <input
+                            autoFocus
                             type="number"
                             value={requestAmount}
                             onChange={(e) => setRequestAmount(parseInt(e.target.value))}
