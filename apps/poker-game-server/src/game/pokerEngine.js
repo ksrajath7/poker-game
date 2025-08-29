@@ -60,7 +60,7 @@ export default class PokerEngine {
 
         const [removed] = this.players.splice(index, 1);
 
-        // Only redistribute chips if the player was active (not waiting)
+        // Redistribute chips if the player was active (not waiting)
         if (!removed.isWaiting) {
             const activePlayers = this.players.filter(p => p.isActive);
             if (activePlayers.length > 0 && removed.chips > 0) {
@@ -71,6 +71,12 @@ export default class PokerEngine {
                     activePlayers[i].chips += 1;
                 }
             }
+        }
+
+        // Reassign owner if the removed player was the owner
+        if (removed.userId === this.ownerId) {
+            const nextOwner = this.players.find(p => p.isActive);
+            this.ownerId = nextOwner ? nextOwner.userId : null;
         }
 
         return removed;
@@ -106,7 +112,7 @@ export default class PokerEngine {
             stage: this.stage,
             isAllInMode: this.isAllInMode, // NEW
             betHistory: [],
-            currentPlayer: this.players[this.currentTurnIndex] || null
+            currentPlayer: this.currentTurnIndex !== -1 ? this.players[this.currentTurnIndex] || null : null
         };
     }
 
