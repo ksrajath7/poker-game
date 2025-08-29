@@ -1,5 +1,4 @@
-<img width="1919" height="991" alt="image" src="https://github.com/user-attachments/assets/fdf66296-e3af-4480-9f15-d0d16923460e" />
-
+<img width="1913" height="989" alt="image" src="https://github.com/user-attachments/assets/6e15e1e9-c1b5-4994-8ee2-a4056ff1ecd0" />
 
 # ♠️ Poker Game – Real-Time Multiplayer
 A full-stack poker game built with Node.js, Socket.IO, and React, featuring reconnection logic, session persistence, and smooth UI animations.
