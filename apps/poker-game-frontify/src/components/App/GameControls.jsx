@@ -70,7 +70,7 @@ export default function GameControls({
             {/* Stage Progression Controls */}
             {(tableOwnerId === userId && isGameStarted) && (
                 <div className="flex flex-wrap justify-center gap-3">
-                    {["preflop", "flop", "turn", "river"].includes(stage) && !bettingRoundActive && (
+                    {["preflop", "flop", "turn"].includes(stage) && !bettingRoundActive && (
                         <button
                             onClick={handleNextStage}
                             className="px-5 py-3 rounded bg-yellow-500 text-white hover:bg-yellow-600 transition shadow-md"
