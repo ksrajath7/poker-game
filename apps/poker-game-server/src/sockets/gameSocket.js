@@ -158,12 +158,15 @@ export default (io) => {
             io.in(tableId).emit('winner', result);
 
             // Attempt to settle debts for the winner(s)
-            result.forEach(winner => {
-                const settledDebts = table.settleDebtsAfterWin(winner.userId); // only if full repayment possible
-                settledDebts.forEach(d => {
-                    io.in(tableId).emit('debtSettled', d); // emit each settled debt
+            if (result.winners) {
+                result.winners.forEach(winner => {
+                    const settledDebts = table.settleDebtsAfterWin(winner.userId); // only if full repayment possible
+                    settledDebts.forEach(d => {
+                        io.in(tableId).emit('debtSettled', d); // emit each settled debt
+                    });
                 });
-            });
+            }
+
 
             io.in(tableId).emit('readyForNextHand', { message: 'Hand complete. Start next hand when ready.' });
 
