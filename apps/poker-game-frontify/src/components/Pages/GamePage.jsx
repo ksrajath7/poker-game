@@ -21,7 +21,7 @@ function GamePage() {
     const [requestAmount, setRequestAmount] = useState(0);
     const [borrowerId, setBorrowerId] = useState('');
     const [lenderId, setLenderId] = useState('');
-    const [interestRate, setInterestRate] = useState(0);
+    const [interestRate, setInterestRate] = useState(10);
 
     const [debtsOwed, setDebtsOwed] = useState([]); // debts the user owes
     const [debtsLent, setDebtsLent] = useState([]); // debts others owe the user
@@ -292,7 +292,7 @@ function GamePage() {
                     <div className="bg-white text-black rounded-2xl shadow-2xl p-8 max-w-lg w-full  relative">
                         <h2 className="text-lg font-semibold mb-4">Chip Requests</h2>
                         <p className="mb-2">Interest rate</p>
-                        <input
+                        {/* <input
                             type="number"
                             value={interestRate}
                             onChange={(e) => setInterestRate(parseInt(e.target.value))}
@@ -300,7 +300,19 @@ function GamePage() {
                             className="px-3 py-2 rounded text-black w-full mb-4 outline-none ring-2 focus:ring-2 focus:ring-green-500"
                             min={0}
                             max={100}
-                        />
+                        /> */}
+
+                        <div className="flex flex-wrap gap-2 mb-4">
+                            {Array.from({ length: 11 }, (_, i) => (i) * 10).map((value) => (
+                                <span
+                                    key={value}
+                                    className={`${value == interestRate ? "bg-blue-600 text-white" : "bg-blue-50 text-black"} px-2 py-0.5 text-[10px] rounded-full font-semibold transition-all duration-200 text-sm cursor-pointer hover:bg-blue-700 hover:text-white`}
+                                    onClick={() => setInterestRate(value)}
+                                >
+                                    {value}
+                                </span>
+                            ))}
+                        </div>
                         <div className="flex gap-2 flex-col">
                             {
                                 pendingChipRequests.length > 0 ?
