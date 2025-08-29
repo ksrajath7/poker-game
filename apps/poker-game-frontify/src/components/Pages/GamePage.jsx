@@ -46,6 +46,7 @@ function GamePage() {
         socket.emit("joinTable", { tableId: joinedTableId, userId, username });
 
         socket.on("joinedTable", ({ table }) => {
+            console.log("joinedTable")
             setTableOwnerId(table.ownerId)
             if (table?.currentPlayer) {
                 setCurrentTurn(table.currentPlayer.userId)
@@ -64,6 +65,7 @@ function GamePage() {
         });
 
         socket.on("tableDetails", ({ players, ownerId, communityCards, pot, currentBet, isGameStarted, stage, bettingRoundActive, betHistory, currentPlayer }) => {
+            console.log("tableDetails")
             setTableOwnerId(ownerId)
             if (currentPlayer) {
                 setCurrentTurn(currentPlayer.userId)
