@@ -274,7 +274,7 @@ function GamePage() {
             <button onClick={handleExitGame} className="absolute top-4 right-4 z-50 px-4 py-2 rounded bg-gray-800 text-white hover:bg-gray-900 transition">🚪 Exit</button>
 
             {/* Poker Table */}
-            <PokerTable handleRequestChips={onClickChipRequest}
+            <PokerTable handleRequestChips={onClickChipRequest} stage={stage}
                 pendingChipRequests={pendingChipRequests} setPendingChipRequests={setPendingChipRequests}
                 showChipRequests={showChipRequests} setShowChipRequests={setShowChipRequests}
                 communityCards={communityCards} currentBet={currentBet} currentTurn={currentTurn}
