@@ -324,6 +324,7 @@ export default class PokerEngine {
                 this.playersToAct = this.players.filter(
                     p => p.isActive && p.userId !== player.userId && p.currentBet < this.lastBetAmount
                 );
+
                 if (player.chips === 0) player.isAllIn = true;
 
                 break;
@@ -339,15 +340,39 @@ export default class PokerEngine {
             return this.showdown();
         }
 
-        // check if all betting done due to all-in
-        if (this.players.filter(p => p.isActive && !p.isAllIn).length <= 1) {
-            this.isAllInMode = true;
-            this.bettingRoundActive = false;
-        }
+        // // check if all betting done due to all-in
+        // if (this.players.filter(p => p.isActive && !p.isAllIn).length <= 1) {
+        //     console.log(" IF")
+        //     this.isAllInMode = true;
+        //     this.bettingRoundActive = false;
+        // }
+        // console.log("this.playersToAct", this.playersToAct)
+        // if (this.playersToAct.length > 0 && !this.isAllInMode) {
+        //     console.log("SECOND IF")
+        //     this.currentTurnIndex = this.players.findIndex(p => p.userId === this.playersToAct[0].userId);
+        // } else {
+        //     console.log("ELSE")
+        //     this.bettingRoundActive = false;
+        //     this.players.forEach(p => p.currentBet = 0);
+        //     // ⚡ roundTotalBet remains visible for UI until startBettingRound()
+        // }
 
-        if (this.playersToAct.length > 0 && !this.isAllInMode) {
+
+
+        console.log("players", this.players)
+        console.log("playersToAct", this.playersToAct)
+        // console.log("findIndex", this.players.findIndex(p => p.userId === this.playersToAct[0].userId))
+
+
+        if (this.playersToAct.length > 0) {
+            console.log("SECOND IF")
             this.currentTurnIndex = this.players.findIndex(p => p.userId === this.playersToAct[0].userId);
         } else {
+            console.log("ELSE")
+            if (this.players.filter(p => p.isActive && !p.isAllIn).length <= 1) {
+                console.log(" IF")
+                this.isAllInMode = true;
+            }
             this.bettingRoundActive = false;
             this.players.forEach(p => p.currentBet = 0);
             // ⚡ roundTotalBet remains visible for UI until startBettingRound()
