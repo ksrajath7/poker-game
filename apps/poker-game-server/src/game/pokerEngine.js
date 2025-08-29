@@ -99,6 +99,7 @@ export default class PokerEngine {
                 currentBet: p.currentBet,
                 roundTotalBet: p.roundTotalBet,
                 totalBet: p.totalBet,
+                isAllIn: p.isAllIn,
                 isActive: p.isActive,
                 isWaiting: p.isWaiting,
                 hand: (p.userId === forUserId || this.stage === 'showdown')
@@ -342,16 +343,12 @@ export default class PokerEngine {
 
         // // check if all betting done due to all-in
         // if (this.players.filter(p => p.isActive && !p.isAllIn).length <= 1) {
-        //     console.log(" IF")
         //     this.isAllInMode = true;
         //     this.bettingRoundActive = false;
         // }
-        // console.log("this.playersToAct", this.playersToAct)
         // if (this.playersToAct.length > 0 && !this.isAllInMode) {
-        //     console.log("SECOND IF")
         //     this.currentTurnIndex = this.players.findIndex(p => p.userId === this.playersToAct[0].userId);
         // } else {
-        //     console.log("ELSE")
         //     this.bettingRoundActive = false;
         //     this.players.forEach(p => p.currentBet = 0);
         //     // ⚡ roundTotalBet remains visible for UI until startBettingRound()
@@ -359,18 +356,10 @@ export default class PokerEngine {
 
 
 
-        console.log("players", this.players)
-        console.log("playersToAct", this.playersToAct)
-        // console.log("findIndex", this.players.findIndex(p => p.userId === this.playersToAct[0].userId))
-
-
         if (this.playersToAct.length > 0) {
-            console.log("SECOND IF")
             this.currentTurnIndex = this.players.findIndex(p => p.userId === this.playersToAct[0].userId);
         } else {
-            console.log("ELSE")
             if (this.players.filter(p => p.isActive && !p.isAllIn).length <= 1) {
-                console.log(" IF")
                 this.isAllInMode = true;
             }
             this.bettingRoundActive = false;

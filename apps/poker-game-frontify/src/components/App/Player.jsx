@@ -5,7 +5,6 @@ import ChipRequestBadge from "./ChipRequestBadge";
 export default function Player({ stage, pendingChipRequests, setPendingChipRequests, myUserId, x, y, chipX, chipY, currentTurn, player, winnerInfo, isWinner, myHand, handleRequestChips, showChipRequests, setShowChipRequests }) {
 
     const isMe = player.userId === myUserId;
-
     return (
         <div
             className="absolute group select-none"
@@ -62,7 +61,7 @@ export default function Player({ stage, pendingChipRequests, setPendingChipReque
                             zIndex: 1,
                         }}
                     >
-                        <div className={`border ${player.isAllIn ? "bg-purple-300 border-purple-500" : "bg-yellow-300 border-yellow-500"} text-black text-xs font-bold px-2 py-0.5 rounded-full shadow-md ring-1 ring-white  rotate-[-5deg] animate-chip`}>
+                        <div className={`border ${player.isAllIn ? "bg-purple-800 border-purple-500 text-white" : "bg-yellow-300 border-yellow-500 text-black"} text-xs font-bold px-2 py-0.5 rounded-full shadow-md ring-1 ring-white  rotate-[-5deg] animate-chip`}>
                             ₵{player.roundTotalBet}
                         </div>
                     </div>
