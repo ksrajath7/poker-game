@@ -47,7 +47,7 @@ export default function Player({ stage, pendingChipRequests, setPendingChipReque
             {/* Player info block */}
             <div
                 className={`scale-105
-        relative p-2 px-4 rounded-xl text-center shadow-lg transition-all duration-300 box
+        relative p-2 px-4 rounded-xl text-center shadow-lg box
         ${(currentTurn === player.userId && stage !== "showdown") ? "ring-4 ring-yellow-400 border-run" : ""}
         ${isWinner ? "border-4 border-green-400" : ""}
        hover:scale-100 w-[150px]
